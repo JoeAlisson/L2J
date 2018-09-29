@@ -19,7 +19,7 @@
 package com.l2jbr.gameserver.clientpackets;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.model.*;
@@ -48,9 +48,9 @@ public final class RequestActionUse extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_actionId = readD();
-		_ctrlPressed = (readD() == 1);
-		_shiftPressed = (readC() == 1);
+		_actionId = readInt();
+		_ctrlPressed = (readInt() == 1);
+		_shiftPressed = (readUnsignedByte() == 1);
 	}
 	
 	@Override
@@ -168,13 +168,13 @@ public final class RequestActionUse extends L2GameClientPacket
 						{
 							if (((L2DoorInstance) target).isAttackable(activeChar) && (pet.getNpcId() != L2SiegeSummonInstance.SWOOP_CANNON_ID))
 							{
-								pet.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, target);
+								pet.getAI().setIntention(Intention.AI_INTENTION_ATTACK, target);
 							}
 						}
 						// siege golem AI doesn't support attacking other than doors at the moment
 						else if (pet.getNpcId() != L2SiegeSummonInstance.SIEGE_GOLEM_ID)
 						{
-							pet.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, target);
+							pet.getAI().setIntention(Intention.AI_INTENTION_ATTACK, target);
 						}
 					}
 				}
@@ -183,7 +183,7 @@ public final class RequestActionUse extends L2GameClientPacket
 			case 23: // pet - cancel action
 				if ((pet != null) && !pet.isMovementDisabled() && !activeChar.isBetrayed())
 				{
-					pet.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE, null);
+					pet.getAI().setIntention(Intention.AI_INTENTION_IDLE, null);
 				}
 				
 				break;
@@ -277,7 +277,7 @@ public final class RequestActionUse extends L2GameClientPacket
 						{
 							return;
 						}
-						Ride mount = new Ride(activeChar.getObjectId(), Ride.ACTION_MOUNT, pet.getTemplate().npcId);
+						Ride mount = new Ride(activeChar.getObjectId(), Ride.ACTION_MOUNT, pet.getTemplate().getId());
 						activeChar.broadcastPacket(mount);
 						activeChar.setMountType(mount.getMountType());
 						activeChar.setMountObjectID(pet.getControlItemId());
@@ -391,13 +391,13 @@ public final class RequestActionUse extends L2GameClientPacket
 			case 53: // move to target
 				if ((target != null) && (pet != null) && (pet != target) && !pet.isMovementDisabled())
 				{
-					pet.getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, new L2CharPosition(target.getX(), target.getY(), target.getZ(), 0));
+					pet.getAI().setIntention(Intention.AI_INTENTION_MOVE_TO, new L2Position(target.getX(), target.getY(), target.getZ(), 0));
 				}
 				break;
 			case 54: // move to target hatch/strider
 				if ((target != null) && (pet != null) && (pet != target) && !pet.isMovementDisabled())
 				{
-					pet.getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, new L2CharPosition(target.getX(), target.getY(), target.getZ(), 0));
+					pet.getAI().setIntention(Intention.AI_INTENTION_MOVE_TO, new L2Position(target.getX(), target.getY(), target.getZ(), 0));
 				}
 				break;
 			case 96: // Quit Party Command Channel

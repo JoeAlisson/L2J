@@ -18,11 +18,11 @@
 package com.l2jbr.gameserver.model.actor.instance;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.L2CharacterAI;
+import com.l2jbr.gameserver.ai.AI;
 import com.l2jbr.gameserver.ai.L2NpcWalkerAI;
 import com.l2jbr.gameserver.model.L2Character;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.serverpackets.CreatureSay;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 import java.util.Map;
 
@@ -42,7 +42,7 @@ public class L2NpcWalkerInstance extends L2NpcInstance
 	 * @param objectId
 	 * @param template
 	 */
-	public L2NpcWalkerInstance(int objectId, L2NpcTemplate template)
+	public L2NpcWalkerInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 		setAI(new L2NpcWalkerAI(new L2NpcWalkerAIAccessor()));
@@ -53,7 +53,7 @@ public class L2NpcWalkerInstance extends L2NpcInstance
 	 * @param newAI AI to set for this L2NpcWalkerInstance
 	 */
 	@Override
-	public void setAI(L2CharacterAI newAI)
+	public void setAI(AI newAI)
 	{
 		if (_ai == null)
 		{
@@ -123,18 +123,14 @@ public class L2NpcWalkerInstance extends L2NpcInstance
 		return false;
 	}
 	
-	@Override
-	public L2CharacterAI getAI()
-	{
-		return super.getAI();
-	}
-	
-	protected class L2NpcWalkerAIAccessor extends L2Character.AIAccessor
-	{
-		/**
-		 * AI can't be deattached.
-		 */
-		@Override
+	public class L2NpcWalkerAIAccessor extends L2Character.AIAccessor {
+
+        @Override
+        public L2NpcWalkerInstance getActor() {
+            return L2NpcWalkerInstance.this;
+        }
+
+        @Override
 		public void detachAI()
 		{
 		}

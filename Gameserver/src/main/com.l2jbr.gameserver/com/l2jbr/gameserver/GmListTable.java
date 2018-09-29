@@ -26,28 +26,25 @@ import com.l2jbr.gameserver.serverpackets.SystemMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import static java.util.Objects.isNull;
 
 /**
  * This class stores references to all online game masters. (access level > 100)
  *
- * @version $Revision: 1.2.2.1.2.7 $ $Date: 2005/04/05 19:41:24 $
  */
 public class GmListTable {
     private static Logger _log = LoggerFactory.getLogger(GmListTable.class.getName());
     private static GmListTable _instance;
 
-    /**
-     * Set(L2PcInstance>) containing all the GM in game
-     */
     private final Map<L2PcInstance, Boolean> _gmList;
 
     public static GmListTable getInstance() {
-        if (_instance == null) {
+        if (isNull(_instance)) {
             _instance = new GmListTable();
         }
         return _instance;
@@ -80,7 +77,7 @@ public class GmListTable {
     }
 
     private GmListTable() {
-        _gmList = new LinkedHashMap<>();
+        _gmList = new ConcurrentHashMap<>();
     }
 
     /**

@@ -18,18 +18,16 @@
  */
 package com.l2jbr.gameserver.clientpackets;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.cache.CrestCache;
 import com.l2jbr.gameserver.idfactory.IdFactory;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.repository.ClanRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 
 /**
@@ -47,14 +45,14 @@ public final class RequestSetPledgeCrest extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_length = readD();
+		_length = readInt();
 		if ((_length < 0) || (_length > 256))
 		{
 			return;
 		}
 		
 		_data = new byte[_length];
-		readB(_data);
+		readBytes(_data);
 	}
 	
 	@Override
@@ -126,33 +124,9 @@ public final class RequestSetPledgeCrest extends L2GameClientPacket
 				_log.info( "Error loading crest of clan:" + clan.getName());
 				return;
 			}
-			
-			java.sql.Connection con = null;
-			
-			try
-			{
-				con = L2DatabaseFactory.getInstance().getConnection();
-				PreparedStatement statement = con.prepareStatement("UPDATE clan_data SET crest_id = ? WHERE clan_id = ?");
-				statement.setInt(1, newId);
-				statement.setInt(2, clan.getClanId());
-				statement.executeUpdate();
-				statement.close();
-			}
-			catch (SQLException e)
-			{
-				_log.warn("could not update the crest id:" + e.getMessage());
-			}
-			finally
-			{
-				try
-				{
-					con.close();
-				}
-				catch (Exception e)
-				{
-				}
-			}
-			
+
+            ClanRepository repository = DatabaseAccess.getRepository(ClanRepository.class);
+            repository.updateClanCrestById(clan.getClanId(), newId);
 			clan.setCrestId(newId);
 			clan.setHasCrest(true);
 			

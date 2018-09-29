@@ -19,12 +19,11 @@ package com.l2jbr.gameserver.serverpackets;
 
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.CropProcure;
 import com.l2jbr.gameserver.model.L2Manor;
 import com.l2jbr.gameserver.model.entity.Castle;
+import com.l2jbr.gameserver.model.entity.database.CropProcure;
 
 import java.util.List;
-
 
 /**
  * format(packet 0xFE) ch dd [ddcdcdddddddcddc] c - id h - sub id d - manor id d - size [ d - crop id d - seed level c d - reward 1 id c d - reward 2 id d - next sale limit d d - min crop price d - max crop price d - today buy d - today price c - today reward d - next buy d - next price c - next
@@ -85,32 +84,32 @@ public class ExShowCropSetting extends L2GameServerPacket {
 
     @Override
     public void writeImpl() {
-        writeC(0xFE); // Id
-        writeH(0x20); // SubId
+        writeByte(0xFE); // Id
+        writeShort(0x20); // SubId
 
-        writeD(_manorId); // manor id
-        writeD(_count); // size
+        writeInt(_manorId); // manor id
+        writeInt(_count); // size
 
         for (int i = 0; i < _count; i++) {
-            writeD(_cropData[(i * 14) + 0]); // crop id
-            writeD(_cropData[(i * 14) + 1]); // seed level
-            writeC(1);
-            writeD(_cropData[(i * 14) + 2]); // reward 1 id
-            writeC(1);
-            writeD(_cropData[(i * 14) + 3]); // reward 2 id
+            writeInt(_cropData[(i * 14) + 0]); // crop id
+            writeInt(_cropData[(i * 14) + 1]); // seed level
+            writeByte(1);
+            writeInt(_cropData[(i * 14) + 2]); // reward 1 id
+            writeByte(1);
+            writeInt(_cropData[(i * 14) + 3]); // reward 2 id
 
-            writeD(_cropData[(i * 14) + 4]); // next sale limit
-            writeD(_cropData[(i * 14) + 5]); // ???
-            writeD(_cropData[(i * 14) + 6]); // min crop price
-            writeD(_cropData[(i * 14) + 7]); // max crop price
+            writeInt(_cropData[(i * 14) + 4]); // next sale limit
+            writeInt(_cropData[(i * 14) + 5]); // ???
+            writeInt(_cropData[(i * 14) + 6]); // min crop price
+            writeInt(_cropData[(i * 14) + 7]); // max crop price
 
-            writeD(_cropData[(i * 14) + 8]); // today buy
-            writeD(_cropData[(i * 14) + 9]); // today price
-            writeC(_cropData[(i * 14) + 10]); // today reward
+            writeInt(_cropData[(i * 14) + 8]); // today buy
+            writeInt(_cropData[(i * 14) + 9]); // today price
+            writeByte(_cropData[(i * 14) + 10]); // today reward
 
-            writeD(_cropData[(i * 14) + 11]); // next buy
-            writeD(_cropData[(i * 14) + 12]); // next price
-            writeC(_cropData[(i * 14) + 13]); // next reward
+            writeInt(_cropData[(i * 14) + 11]); // next buy
+            writeInt(_cropData[(i * 14) + 12]); // next price
+            writeByte(_cropData[(i * 14) + 13]); // next reward
         }
     }
 

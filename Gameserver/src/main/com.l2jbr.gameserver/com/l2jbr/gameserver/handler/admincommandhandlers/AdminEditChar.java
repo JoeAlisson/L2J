@@ -19,7 +19,7 @@
 package com.l2jbr.gameserver.handler.admincommandhandlers;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.ClanTable;
 import com.l2jbr.gameserver.handler.IAdminCommandHandler;
 import com.l2jbr.gameserver.model.GMAudit;
@@ -27,7 +27,7 @@ import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.L2World;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PetInstance;
-import com.l2jbr.gameserver.model.base.ClassId;
+import com.l2jbr.gameserver.model.base.PlayerClass;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
 import com.l2jbr.gameserver.util.Util;
@@ -194,17 +194,17 @@ public class AdminEditChar implements IAdminCommandHandler {
                     return false;
                 }
                 boolean valid = false;
-                for (ClassId classid : ClassId.values()) {
+                for (PlayerClass classid : PlayerClass.values()) {
                     if (classidval == classid.getId()) {
                         valid = true;
                     }
                 }
-                if (valid && (player.getClassId().getId() != classidval)) {
+                if (valid && (player.getPlayerClass().getId() != classidval)) {
                     player.setClassId(classidval);
                     if (!player.isSubClassActive()) {
                         player.setBaseClass(classidval);
                     }
-                    String newclass = player.getTemplate().className;
+                    String newclass = player.getPlayerClass().humanize();
                     player.store();
                     player.sendMessage("A GM changed your class to " + newclass);
                     player.broadcastUserInfo();
@@ -346,7 +346,7 @@ public class AdminEditChar implements IAdminCommandHandler {
         adminReply.replace("%pages%", replyMSG.toString());
         replyMSG.delete(0, replyMSG.length());
         for (int i = CharactersStart; i < CharactersEnd; i++) { // Add player info into new Table row
-            replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_info " + players[i].getName() + "\">" + players[i].getName() + "</a></td><td width=110>" + players[i].getTemplate().className + "</td><td width=40>" + players[i].getLevel() + "</td></tr>");
+            replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_info " + players[i].getName() + "\">" + players[i].getName() + "</a></td><td width=110>" + players[i].getTemplate().getPlayerClass() + "</td><td width=40>" + players[i].getLevel() + "</td></tr>");
         }
         adminReply.replace("%players%", replyMSG.toString());
         activeChar.sendPacket(adminReply);
@@ -391,9 +391,9 @@ public class AdminEditChar implements IAdminCommandHandler {
         adminReply.replace("%clan%", String.valueOf(ClanTable.getInstance().getClan(player.getClanId())));
         adminReply.replace("%xp%", String.valueOf(player.getExp()));
         adminReply.replace("%sp%", String.valueOf(player.getSp()));
-        adminReply.replace("%class%", player.getTemplate().className);
-        adminReply.replace("%ordinal%", String.valueOf(player.getClassId().ordinal()));
-        adminReply.replace("%classid%", String.valueOf(player.getClassId()));
+        adminReply.replace("%class%", player.getPlayerClass().humanize());
+        adminReply.replace("%ordinal%", String.valueOf(player.getPlayerClass().ordinal()));
+        adminReply.replace("%classid%", String.valueOf(player.getPlayerClass()));
         adminReply.replace("%x%", String.valueOf(player.getX()));
         adminReply.replace("%y%", String.valueOf(player.getY()));
         adminReply.replace("%z%", String.valueOf(player.getZ()));
@@ -518,7 +518,7 @@ public class AdminEditChar implements IAdminCommandHandler {
 
         player.broadcastPacket(new CharInfo(player));
         player.sendPacket(new UserInfo(player));
-        player.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+        player.getAI().setIntention(Intention.AI_INTENTION_IDLE);
         player.decayMe();
         player.spawnMe(activeChar.getX(), activeChar.getY(), activeChar.getZ());
     }
@@ -548,7 +548,7 @@ public class AdminEditChar implements IAdminCommandHandler {
             name = player.getName();
             if (name.toLowerCase().contains(CharacterToFind.toLowerCase())) {
                 CharactersFound = CharactersFound + 1;
-                replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_list " + name + "\">" + name + "</a></td><td width=110>" + player.getTemplate().className + "</td><td width=40>" + player.getLevel() + "</td></tr>");
+                replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_list " + name + "\">" + name + "</a></td><td width=110>" + player.getTemplate().getPlayerClass() + "</td><td width=40>" + player.getLevel() + "</td></tr>");
             }
             if (CharactersFound > 20) {
                 break;
@@ -588,11 +588,11 @@ public class AdminEditChar implements IAdminCommandHandler {
         NpcHtmlMessage adminReply = new NpcHtmlMessage(5);
         adminReply.setFile("data/html/admin/ipfind.htm");
         for (L2PcInstance player : players) {
-            ip = player.getClient().getConnection().getInetAddress().getHostAddress();
+            ip = player.getClient().getHostAddress();
             if (ip.equals(IpAdress)) {
                 name = player.getName();
                 CharactersFound = CharactersFound + 1;
-                replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_list " + name + "\">" + name + "</a></td><td width=110>" + player.getTemplate().className + "</td><td width=40>" + player.getLevel() + "</td></tr>");
+                replyMSG.append("<tr><td width=80><a action=\"bypass -h admin_character_list " + name + "\">" + name + "</a></td><td width=110>" + player.getTemplate().getPlayerClass() + "</td><td width=40>" + player.getLevel() + "</td></tr>");
             }
             if (CharactersFound > 20) {
                 break;

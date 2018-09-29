@@ -20,11 +20,11 @@ package com.l2jbr.gameserver.model.actor.instance;
 
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.datatables.TeleportLocationTable;
-import com.l2jbr.gameserver.model.L2CharPosition;
-import com.l2jbr.gameserver.model.L2TeleportLocation;
+import com.l2jbr.gameserver.model.L2Position;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Teleport;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.NpcHtmlMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 import java.util.StringTokenizer;
 
@@ -45,7 +45,7 @@ public final class L2CastleTeleporterInstance extends L2FolkInstance
 	 * @param objectId
 	 * @param template
 	 */
-	public L2CastleTeleporterInstance(int objectId, L2NpcTemplate template)
+	public L2CastleTeleporterInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 	}
@@ -146,7 +146,7 @@ public final class L2CastleTeleporterInstance extends L2FolkInstance
 	
 	private void doTeleport(L2PcInstance player, int val)
 	{
-		L2TeleportLocation list = TeleportLocationTable.getInstance().getTemplate(val);
+		Teleport list = TeleportLocationTable.getInstance().getTemplate(val);
 		if (list != null)
 		{
 			if (player.reduceAdena("Teleport", list.getPrice(), player.getLastFolkNPC(), true))
@@ -158,7 +158,7 @@ public final class L2CastleTeleporterInstance extends L2FolkInstance
 				
 				// teleport
 				player.teleToLocation(list.getLocX(), list.getLocY(), list.getLocZ(), true);
-				player.stopMove(new L2CharPosition(list.getLocX(), list.getLocY(), list.getLocZ(), player.getHeading()));
+				player.stopMove(new L2Position(list.getLocX(), list.getLocY(), list.getLocZ(), player.getHeading()));
 			}
 		}
 		else

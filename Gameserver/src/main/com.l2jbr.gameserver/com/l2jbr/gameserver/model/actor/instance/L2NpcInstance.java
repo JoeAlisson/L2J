@@ -24,7 +24,7 @@ import com.l2jbr.gameserver.Olympiad;
 import com.l2jbr.gameserver.SevenSigns;
 import com.l2jbr.gameserver.SevenSignsFestival;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.cache.HtmCache;
 import com.l2jbr.gameserver.datatables.*;
 import com.l2jbr.gameserver.idfactory.IdFactory;
@@ -40,6 +40,10 @@ import com.l2jbr.gameserver.model.actor.stat.NpcStat;
 import com.l2jbr.gameserver.model.actor.status.NpcStatus;
 import com.l2jbr.gameserver.model.entity.Castle;
 import com.l2jbr.gameserver.model.entity.L2Event;
+import com.l2jbr.gameserver.model.entity.database.CharTemplate;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 import com.l2jbr.gameserver.model.quest.Quest;
 import com.l2jbr.gameserver.model.quest.QuestState;
 import com.l2jbr.gameserver.model.zone.type.L2TownZone;
@@ -48,16 +52,15 @@ import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
 import com.l2jbr.gameserver.skills.Stats;
 import com.l2jbr.gameserver.taskmanager.DecayTaskManager;
-import com.l2jbr.gameserver.templates.L2HelperBuff;
-import com.l2jbr.gameserver.templates.L2Item;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
-import com.l2jbr.gameserver.templates.L2Weapon;
 
 import java.text.DateFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
-import static com.l2jbr.gameserver.ai.CtrlIntention.AI_INTENTION_ACTIVE;
+import static com.l2jbr.gameserver.ai.Intention.AI_INTENTION_ACTIVE;
+import static com.l2jbr.gameserver.templates.NpcType.L2Auctioneer;
+import static java.util.Objects.requireNonNullElse;
 
 
 /**
@@ -65,7 +68,7 @@ import static com.l2jbr.gameserver.ai.CtrlIntention.AI_INTENTION_ACTIVE;
  * <BR>
  * L2Character :<BR>
  * <BR>
- * <li>L2Attackable</li> <li>L2BoxInstance</li> <li>L2FolkInstance</li>
+ * <li>L2Attackable</li> <li>L2FolkInstance</li>
  *
  * @version $Revision: 1.32.2.7.2.24 $ $Date: 2005/04/11 10:06:09 $
  */
@@ -113,8 +116,8 @@ public class L2NpcInstance extends L2Character {
     protected RandomAnimationTask _rAniTask = null;
     private int _currentLHandId; // normally this shouldn't change from the template, but there exist exceptions
     private int _currentRHandId; // normally this shouldn't change from the template, but there exist exceptions
-    private int _currentCollisionHeight; // used for npc grow effect skills
-    private int _currentCollisionRadius; // used for npc grow effect skills
+    private float _currentCollisionHeight; // used for npc grow effect skills
+    private float _currentCollisionRadius; // used for npc grow effect skills
 
     /**
      * Task launching the function onRandomAnimation()
@@ -235,7 +238,7 @@ public class L2NpcInstance extends L2Character {
      * @param objectId Identifier of the object to initialized
      * @param template The L2NpcTemplate to apply to the NPC
      */
-    public L2NpcInstance(int objectId, L2NpcTemplate template) {
+    public L2NpcInstance(int objectId, NpcTemplate template) {
         // Call the L2Character constructor to set the _template of the L2Character, copy skills from template to object
         // and link _calculators to NPC_STD_CALCULATOR
         super(objectId, template);
@@ -245,20 +248,36 @@ public class L2NpcInstance extends L2Character {
         initCharStatusUpdateValues();
 
         // initialize the "current" equipment
-        _currentLHandId = getTemplate().lhand;
-        _currentRHandId = getTemplate().rhand;
+        _currentLHandId = getTemplate().getLhand();
+        _currentRHandId = getTemplate().getRhand();
         // initialize the "current" collisions
-        _currentCollisionHeight = getTemplate().collisionHeight;
-        _currentCollisionRadius = getTemplate().collisionRadius;
+        _currentCollisionHeight = getTemplate().getCollisionHeight();
+        _currentCollisionRadius = getTemplate().getCollisionRadius();
 
         if (template == null) {
-            _log.error("No template for Npc. Please check your datapack is setup correctly.");
+            _log.error("No template for NpcTemplate. Please check your datapack is setup correctly.");
             return;
         }
 
         // Set the name of the L2Character
-        setName(template.name);
+        setName(template.getName());
 
+    }
+
+    @Override
+    protected void initSkillsStat(CharTemplate template) {
+        // Copy the Standard Calcultors of the L2NPCInstance in _calculators
+        _calculators = NPC_STD_CALCULATOR;
+
+        // Copy the skills of the L2NPCInstance from its template to the L2Character Instance
+        // The skills list can be affected by spell effects so it's necessary to make a copy
+        // to avoid that a spell affecting a L2NPCInstance, affects others L2NPCInstance of the same type too.
+        _skills = ((NpcTemplate) template).getSkills();
+        if (_skills != null) {
+            for (Map.Entry<Integer, L2Skill> skill : _skills.entrySet()) {
+                addStatFuncs(skill.getValue().getStatFuncs(null, this));
+            }
+        }
     }
 
     @Override
@@ -289,8 +308,8 @@ public class L2NpcInstance extends L2Character {
      * Return the L2NpcTemplate of the L2NpcInstance.
      */
     @Override
-    public final L2NpcTemplate getTemplate() {
-        return (L2NpcTemplate) super.getTemplate();
+    public final NpcTemplate getTemplate() {
+        return (NpcTemplate) super.getTemplate();
     }
 
     /**
@@ -300,7 +319,7 @@ public class L2NpcInstance extends L2Character {
      * @return
      */
     public int getNpcId() {
-        return getTemplate().npcId;
+        return getTemplate().getId();
     }
 
     @Override
@@ -319,7 +338,7 @@ public class L2NpcInstance extends L2Character {
      * @return
      */
     public final String getFactionId() {
-        return getTemplate().factionId;
+        return getTemplate().getFactionId();
     }
 
     /**
@@ -328,7 +347,7 @@ public class L2NpcInstance extends L2Character {
      */
     @Override
     public final int getLevel() {
-        return getTemplate().level;
+        return getTemplate().getLevel();
     }
 
     /**
@@ -348,7 +367,7 @@ public class L2NpcInstance extends L2Character {
      * @return
      */
     public int getAggroRange() {
-        return getTemplate().aggroRange;
+        return getTemplate().getAggro();
     }
 
     /**
@@ -358,7 +377,7 @@ public class L2NpcInstance extends L2Character {
      * @return
      */
     public int getFactionRange() {
-        return getTemplate().factionRange;
+        return getTemplate().getFactionRange();
     }
 
     /**
@@ -367,7 +386,7 @@ public class L2NpcInstance extends L2Character {
      */
     @Override
     public boolean isUndead() {
-        return getTemplate().isUndead;
+        return getTemplate().isUndead();
     }
 
     /**
@@ -632,7 +651,7 @@ public class L2NpcInstance extends L2Character {
                 if (Math.abs(player.getZ() - getZ()) < 400) // this max heigth difference might need some tweaking
                 {
                     // Set the L2PcInstance Intention to AI_INTENTION_ATTACK
-                    player.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, this);
+                    player.getAI().setIntention(Intention.AI_INTENTION_ATTACK, this);
                     // player.startAttack(this);
                 } else {
                     // Send a Server->Client ActionFailed to the L2PcInstance in order to avoid that the client wait another packet
@@ -642,7 +661,7 @@ public class L2NpcInstance extends L2Character {
                 // Calculate the distance between the L2PcInstance and the L2NpcInstance
                 if (!canInteract(player)) {
                     // Notify the L2PcInstance AI with AI_INTENTION_INTERACT
-                    player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+                    player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
                 } else {
                     // Send a Server->Client packet SocialAction to the all L2PcInstance on the _knownPlayer of the L2NpcInstance
                     // to display a social action of the L2NpcInstance on their client
@@ -726,7 +745,7 @@ public class L2NpcInstance extends L2Character {
             }
 
             html1.append("<table border=\"0\" width=\"100%\">");
-            html1.append("<tr><td>Object ID</td><td>" + getObjectId() + "</td><td>NPC ID</td><td>" + getTemplate().npcId + "</td></tr>");
+            html1.append("<tr><td>Object ID</td><td>" + getObjectId() + "</td><td>NPC ID</td><td>" + getTemplate().getId() + "</td></tr>");
             html1.append("<tr><td>Castle</td><td>" + getCastle().getCastleId() + "</td><td>Coords</td><td>" + getX() + "," + getY() + "," + getZ() + "</td></tr>");
             html1.append("<tr><td>Level</td><td>" + getLevel() + "</td><td>Aggro</td><td>" + ((this instanceof L2Attackable) ? ((L2Attackable) this).getAggroRange() : 0) + "</td></tr>");
             html1.append("</table><br>");
@@ -748,9 +767,9 @@ public class L2NpcInstance extends L2Character {
             html1.append("<tr><td>INT</td><td>" + getINT() + "</td><td>WIT</td><td>" + getWIT() + "</td><td>MEN</td><td>" + getMEN() + "</td></tr>");
             html1.append("</table>");
 
-            html1.append("<br><center><table><tr><td><button value=\"Edit NPC\" action=\"bypass -h admin_edit_npc " + getTemplate().npcId + "\" width=100 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"><br1></td>");
+            html1.append("<br><center><table><tr><td><button value=\"Edit NPC\" action=\"bypass -h admin_edit_npc " + getTemplate().getId() + "\" width=100 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"><br1></td>");
             html1.append("<td><button value=\"Kill\" action=\"bypass -h admin_kill\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td><br1></tr>");
-            html1.append("<tr><td><button value=\"Show DropList\" action=\"bypass -h admin_show_droplist " + getTemplate().npcId + "\" width=100 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>");
+            html1.append("<tr><td><button value=\"Show DropList\" action=\"bypass -h admin_show_droplist " + getTemplate().getId() + "\" width=100 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>");
             html1.append("<td><button value=\"Delete\" action=\"bypass -h admin_delete\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></td></tr>");
             html1.append("</table></center><br>");
             html1.append("</body></html>");
@@ -786,7 +805,7 @@ public class L2NpcInstance extends L2Character {
             html1.append("<tr><td>Accuracy</td><td>" + getAccuracy() + "</td><td>Evasion</td><td>" + getEvasionRate(null) + "</td></tr>");
             html1.append("<tr><td>Critical</td><td>" + getCriticalHit(null, null) + "</td><td>Speed</td><td>" + getRunSpeed() + "</td></tr>");
             html1.append("<tr><td>Atk.Speed</td><td>" + getPAtkSpd() + "</td><td>Cast.Speed</td><td>" + getMAtkSpd() + "</td></tr>");
-            html1.append("<tr><td>Race</td><td>" + getTemplate().race + "</td><td></td><td></td></tr>");
+            html1.append("<tr><td>Race</td><td>" + getTemplate().getRace() + "</td><td></td><td></td></tr>");
             html1.append("</table>");
 
             html1.append("<br><center><font color=\"LEVEL\">[Basic Stats]</font></center>");
@@ -799,7 +818,7 @@ public class L2NpcInstance extends L2Character {
             html1.append("Rates legend: <font color=\"ff0000\">50%+</font> <font color=\"00ff00\">30%+</font> <font color=\"0000ff\">less than 30%</font>");
             html1.append("<table border=0 width=\"100%\">");
 
-            for (L2DropCategory cat : getTemplate().getDropData()) {
+            for (L2DropCategory cat : getTemplate().getDropCategories().values()) {
                 for (L2DropData drop : cat.getAllDrops()) {
                     String name = ItemTable.getInstance().getTemplate(drop.getItemId()).getName();
 
@@ -841,7 +860,7 @@ public class L2NpcInstance extends L2Character {
             if (_castleIndex < 0) {
                 _castleIndex = CastleManager.getInstance().findNearestCastleIndex(this);
             } else {
-                _isInTown = true; // Npc was spawned in town
+                _isInTown = true; // NpcTemplate was spawned in town
             }
         }
 
@@ -1032,22 +1051,22 @@ public class L2NpcInstance extends L2Character {
      * <BR>
      */
     @Override
-    public L2Weapon getActiveWeaponItem() {
+    public Weapon getActiveWeaponItem() {
         // Get the weapon identifier equiped in the right hand of the L2NpcInstance
-        int weaponId = getTemplate().rhand;
+        int weaponId = getTemplate().getRhand();
 
         if (weaponId < 1) {
             return null;
         }
 
         // Get the weapon item equiped in the right hand of the L2NpcInstance
-        L2Item item = ItemTable.getInstance().getTemplate(getTemplate().rhand);
+        ItemTemplate item = ItemTable.getInstance().getTemplate(getTemplate().getRhand());
 
-        if (!(item instanceof L2Weapon)) {
+        if (!(item instanceof Weapon)) {
             return null;
         }
 
-        return (L2Weapon) item;
+        return (Weapon) item;
     }
 
     /**
@@ -1065,22 +1084,22 @@ public class L2NpcInstance extends L2Character {
      * <BR>
      */
     @Override
-    public L2Weapon getSecondaryWeaponItem() {
+    public Weapon getSecondaryWeaponItem() {
         // Get the weapon identifier equiped in the right hand of the L2NpcInstance
-        int weaponId = getTemplate().lhand;
+        int weaponId = getTemplate().getLhand();
 
         if (weaponId < 1) {
             return null;
         }
 
         // Get the weapon item equiped in the right hand of the L2NpcInstance
-        L2Item item = ItemTable.getInstance().getTemplate(getTemplate().lhand);
+        ItemTemplate item = ItemTable.getInstance().getTemplate(getTemplate().getLhand());
 
-        if (!(item instanceof L2Weapon)) {
+        if (!(item instanceof Weapon)) {
             return null;
         }
 
-        return (L2Weapon) item;
+        return (Weapon) item;
     }
 
     /**
@@ -1259,7 +1278,7 @@ public class L2NpcInstance extends L2Character {
         // collect awaiting quests and start points
         List<Quest> options = new LinkedList<>();
 
-        QuestState[] awaits = player.getQuestsForTalk(getTemplate().npcId);
+        QuestState[] awaits = player.getQuestsForTalk(getTemplate().getId());
         Quest[] starts = getTemplate().getEventQuests(Quest.QuestEventType.QUEST_START);
 
         // Quests are limited between 1 and 999 because those are the quests that are supported by the client.
@@ -1313,7 +1332,7 @@ public class L2NpcInstance extends L2Character {
     // 24 - Previous winning numbers/Prize claim
     // >24 - check lottery ticket by item object id
     public void showLotoWindow(L2PcInstance player, int val) {
-        int npcId = getTemplate().npcId;
+        int npcId = getTemplate().getId();
         String filename;
         SystemMessage sm;
         NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
@@ -1596,10 +1615,10 @@ public class L2NpcInstance extends L2Character {
 
         L2Skill skill = null;
         // Go through the Helper Buff list define in sql table helper_buff_list and cast skill
-        for (L2HelperBuff helperBuffItem : HelperBuffTable.getInstance().getHelperBuffTable()) {
-            if (helperBuffItem.isMagicClassBuff() == player.isMageClass()) {
+        for (var helperBuffItem : HelperBuffTable.getInstance().getHelperBuffTable()) {
+            if (helperBuffItem.isMagicClass() == player.isMageClass()) {
                 if ((player_level >= helperBuffItem.getLowerLevel()) && (player_level <= helperBuffItem.getUpperLevel())) {
-                    skill = SkillTable.getInstance().getInfo(helperBuffItem.getSkillID(), helperBuffItem.getSkillLevel());
+                    skill = SkillTable.getInstance().getInfo(helperBuffItem.getSkillId(), helperBuffItem.getSkillLevel());
                     if (skill.getSkillType() == SkillType.SUMMON) {
                         player.doCast(skill);
                     } else {
@@ -1668,11 +1687,11 @@ public class L2NpcInstance extends L2Character {
             }
         }
 
-        if ((getTemplate().type == "L2Auctioneer") && (val == 0)) {
+        if ((L2Auctioneer.equals(getTemplate().getType())) && (val == 0)) {
             return;
         }
 
-        int npcId = getTemplate().npcId;
+        int npcId = requireNonNullElse(getTemplate().getId(), 0);
 
         /* For use with Seven Signs implementation */
         String filename = SevenSigns.SEVEN_SIGNS_HTML_PATH;
@@ -2005,7 +2024,7 @@ public class L2NpcInstance extends L2Character {
      */
     public int getExpReward() {
         double rateXp = getStat().calcStat(Stats.MAX_HP, 1, this, null);
-        return (int) (getTemplate().rewardExp * rateXp * Config.RATE_XP);
+        return (int) (getTemplate().getExp() * rateXp * Config.RATE_XP);
     }
 
     /**
@@ -2016,7 +2035,7 @@ public class L2NpcInstance extends L2Character {
      */
     public int getSpReward() {
         double rateSp = getStat().calcStat(Stats.MAX_HP, 1, this, null);
-        return (int) (getTemplate().rewardSp * rateSp * Config.RATE_SP);
+        return (int) (getTemplate().getSp() * rateSp * Config.RATE_SP);
     }
 
     /**
@@ -2042,10 +2061,10 @@ public class L2NpcInstance extends L2Character {
 
         // normally this wouldn't really be needed, but for those few exceptions,
         // we do need to reset the weapons back to the initial templated weapon.
-        _currentLHandId = getTemplate().lhand;
-        _currentRHandId = getTemplate().rhand;
-        _currentCollisionHeight = getTemplate().collisionHeight;
-        _currentCollisionRadius = getTemplate().collisionRadius;
+        _currentLHandId = getTemplate().getLhand();
+        _currentRHandId = getTemplate().getRhand();
+        _currentCollisionHeight = getTemplate().getCollisionHeight();
+        _currentCollisionRadius = getTemplate().getCollisionRadius();
         DecayTaskManager.getInstance().addDecayTask(this);
         return true;
     }
@@ -2142,7 +2161,7 @@ public class L2NpcInstance extends L2Character {
 
     @Override
     public String toString() {
-        return getTemplate().name;
+        return getTemplate().getName();
     }
 
     public boolean isDecayed() {
@@ -2175,19 +2194,19 @@ public class L2NpcInstance extends L2Character {
         _currentRHandId = newWeaponId;
     }
 
-    public void setCollisionHeight(int height) {
+    public void setCollisionHeight(float height) {
         _currentCollisionHeight = height;
     }
 
-    public void setCollisionRadius(int radius) {
+    public void setCollisionRadius(float radius) {
         _currentCollisionRadius = radius;
     }
 
-    public int getCollisionHeight() {
+    public float getCollisionHeight() {
         return _currentCollisionHeight;
     }
 
-    public int getCollisionRadius() {
+    public float getCollisionRadius() {
         return _currentCollisionRadius;
     }
 }

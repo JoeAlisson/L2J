@@ -18,18 +18,20 @@
  */
 package com.l2jbr.gameserver.instancemanager;
 
-import com.l2jbr.commons.L2DatabaseFactory;
 import com.l2jbr.gameserver.model.L2World;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
-import com.l2jbr.gameserver.model.entity.Couple;
+import com.l2jbr.gameserver.model.entity.database.Wedding;
+import com.l2jbr.gameserver.model.entity.database.repository.ModsWeddingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import static com.l2jbr.commons.database.DatabaseAccess.getRepository;
+import static java.util.Objects.isNull;
+import static java.util.Objects.requireNonNullElse;
 
 /**
  * @author evill33t
@@ -37,11 +39,10 @@ import java.util.List;
 public class CoupleManager {
     private static final Logger _log = LoggerFactory.getLogger(CoupleManager.class.getName());
 
-    // =========================================================
     private static CoupleManager _instance;
 
-    public static final CoupleManager getInstance() {
-        if (_instance == null) {
+    public static CoupleManager getInstance() {
+        if (isNull(_instance)) {
             _log.info("L2JMOD: Initializing CoupleManager");
             _instance = new CoupleManager();
             _instance.load();
@@ -49,52 +50,25 @@ public class CoupleManager {
         return _instance;
     }
 
-    // =========================================================
+    private CoupleManager() {
+        _couples = new ArrayList<>();
+    }
 
-    // =========================================================
-    // Data Field
-    private List<Couple> _couples;
+    private List<Wedding> _couples;
 
-    // =========================================================
-    // Method - Public
+
     public void reload() {
         getCouples().clear();
         load();
     }
 
-    // =========================================================
-    // Method - Private
-    private final void load() {
-        java.sql.Connection con = null;
-        try {
-            PreparedStatement statement;
-            ResultSet rs;
-
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement("Select id from mods_wedding order by id");
-            rs = statement.executeQuery();
-
-            while (rs.next()) {
-                getCouples().add(new Couple(rs.getInt("id")));
-            }
-
-            statement.close();
-
-            _log.info("Loaded: " + getCouples().size() + " couples(s)");
-        } catch (Exception e) {
-            _log.error("Exception: CoupleManager.load(): " + e.getMessage(), e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+    private void load() {
+        getRepository(ModsWeddingRepository.class).findAll().forEach(wedding -> _couples.add(wedding));
+        _log.info("Loaded: {} couples(s)", getCouples().size());
     }
 
-    // =========================================================
-    // Property - Public
-    public final Couple getCouple(int coupleId) {
+
+    public final Wedding getCouple(int coupleId) {
         int index = getCoupleIndex(coupleId);
         if (index >= 0) {
             return getCouples().get(index);
@@ -108,19 +82,22 @@ public class CoupleManager {
                 int _player1id = player1.getObjectId();
                 int _player2id = player2.getObjectId();
 
-                Couple _new = new Couple(player1, player2);
-                getCouples().add(_new);
+                Wedding wedding = new Wedding(player1.getObjectId(), player2.getObjectId());
+
+                getRepository(ModsWeddingRepository.class).save(wedding);
+                _couples.add(wedding);
+                var weddingId = requireNonNullElse(wedding.getId(), 0);
                 player1.setPartnerId(_player2id);
+                player1.setCoupleId(weddingId);
                 player2.setPartnerId(_player1id);
-                player1.setCoupleId(_new.getId());
-                player2.setCoupleId(_new.getId());
+                player2.setCoupleId(weddingId);
             }
         }
     }
 
     public void deleteCouple(int coupleId) {
         int index = getCoupleIndex(coupleId);
-        Couple couple = getCouples().get(index);
+        Wedding couple = getCouples().get(index);
         if (couple != null) {
             L2PcInstance player1 = (L2PcInstance) L2World.getInstance().findObject(couple.getPlayer1Id());
             L2PcInstance player2 = (L2PcInstance) L2World.getInstance().findObject(couple.getPlayer2Id());
@@ -143,8 +120,8 @@ public class CoupleManager {
 
     public final int getCoupleIndex(int coupleId) {
         int i = 0;
-        for (Couple temp : getCouples()) {
-            if ((temp != null) && (temp.getId() == coupleId)) {
+        for (Wedding temp : getCouples()) {
+            if ((temp != null) && (Objects.equals(coupleId, temp.getId()))) {
                 return i;
             }
             i++;
@@ -152,10 +129,7 @@ public class CoupleManager {
         return -1;
     }
 
-    public final List<Couple> getCouples() {
-        if (_couples == null) {
-            _couples = new LinkedList<>();
-        }
+    public final List<Wedding> getCouples() {
         return _couples;
     }
 }

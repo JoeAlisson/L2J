@@ -18,8 +18,8 @@
 package com.l2jbr.gameserver.model.actor.knownlist;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.CtrlIntention;
-import com.l2jbr.gameserver.ai.L2CharacterAI;
+import com.l2jbr.gameserver.ai.AI;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.actor.instance.L2GuardInstance;
@@ -78,9 +78,9 @@ public class GuardKnownList extends AttackableKnownList
 				}
 				
 				// Set the L2GuardInstance Intention to AI_INTENTION_ACTIVE
-				if (getActiveChar().getAI().getIntention() == CtrlIntention.AI_INTENTION_IDLE)
+				if (getActiveChar().getAI().getIntention() == Intention.AI_INTENTION_IDLE)
 				{
-					getActiveChar().getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE, null);
+					getActiveChar().getAI().setIntention(Intention.AI_INTENTION_ACTIVE, null);
 				}
 			}
 		}
@@ -97,9 +97,9 @@ public class GuardKnownList extends AttackableKnownList
 				}
 				
 				// Set the L2GuardInstance Intention to AI_INTENTION_ACTIVE
-				if (getActiveChar().getAI().getIntention() == CtrlIntention.AI_INTENTION_IDLE)
+				if (getActiveChar().getAI().getIntention() == Intention.AI_INTENTION_IDLE)
 				{
-					getActiveChar().getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE, null);
+					getActiveChar().getAI().setIntention(Intention.AI_INTENTION_ACTIVE, null);
 				}
 			}
 		}
@@ -121,10 +121,10 @@ public class GuardKnownList extends AttackableKnownList
 			// removeAllKnownObjects();
 			
 			// Set the L2GuardInstance to AI_INTENTION_IDLE
-			L2CharacterAI ai = getActiveChar().getAI();
+			AI ai = getActiveChar().getAI();
 			if (ai != null)
 			{
-				ai.setIntention(CtrlIntention.AI_INTENTION_IDLE, null);
+				ai.setIntention(Intention.AI_INTENTION_IDLE, null);
 			}
 		}
 		

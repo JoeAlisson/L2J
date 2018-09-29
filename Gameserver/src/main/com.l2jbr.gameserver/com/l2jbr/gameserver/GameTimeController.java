@@ -18,7 +18,7 @@
  */
 package com.l2jbr.gameserver;
 
-import com.l2jbr.gameserver.ai.CtrlEvent;
+import com.l2jbr.gameserver.ai.Event;
 import com.l2jbr.gameserver.instancemanager.DayNightSpawnManager;
 import com.l2jbr.gameserver.model.L2Character;
 import org.slf4j.Logger;
@@ -30,19 +30,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 
+import static java.util.Objects.isNull;
 
-/**
- * This class ...
- *
- * @version $Revision: 1.1.4.8 $ $Date: 2005/04/06 16:13:24 $
- */
 public class GameTimeController {
     static final Logger _log = LoggerFactory.getLogger(GameTimeController.class.getName());
 
     public static final int TICKS_PER_SECOND = 10;
     public static final int MILLIS_IN_TICK = 1000 / TICKS_PER_SECOND;
 
-    private static GameTimeController _instance;
+    private static GameTimeController INSTANCE;
 
     protected static int _gameTicks;
     protected static long _gameStartTime;
@@ -55,11 +51,9 @@ public class GameTimeController {
 
     /**
      * One in-game day is 240 real minutes.
-     *
-     * @return
      */
     public static GameTimeController getInstance() {
-        return _instance == null ? _instance = new GameTimeController() : _instance;
+        return isNull(INSTANCE) ? INSTANCE = new GameTimeController() : INSTANCE;
     }
 
     private GameTimeController() {
@@ -230,7 +224,7 @@ public class GameTimeController {
             for (L2Character cha : _ended) {
                 try {
                     cha.getKnownList().updateKnownObjects();
-                    cha.getAI().notifyEvent(CtrlEvent.EVT_ARRIVED);
+                    cha.getAI().notifyEvent(Event.EVT_ARRIVED);
                 } catch (NullPointerException e) {
                 }
             }

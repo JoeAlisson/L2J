@@ -18,19 +18,19 @@
  */
 package com.l2jbr.gameserver.datatables;
 
-import com.l2jbr.commons.L2DatabaseFactory;
-import com.l2jbr.gameserver.model.L2NpcWalkerNode;
+import com.l2jbr.commons.database.DatabaseAccess;
+import com.l2jbr.gameserver.model.entity.database.WalkerRouteNode;
+import com.l2jbr.gameserver.model.entity.database.repository.WalkerRoutesRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-
+import java.util.Map;
 
 /**
- * Main Table to Load Npc Walkers Routes and Chat SQL Table.<br>
+ * Main Table to Load NpcTemplate Walkers Routes and Chat SQL Table.<br>
  *
  * @author Rayan RPG for L2Emu Project
  * @since 927
@@ -40,70 +40,33 @@ public class NpcWalkerRoutesTable {
 
     private static NpcWalkerRoutesTable _instance;
 
-    private List<L2NpcWalkerNode> _routes;
+    private Map<Integer, List<WalkerRouteNode>> routes;
 
     public static NpcWalkerRoutesTable getInstance() {
         if (_instance == null) {
             _instance = new NpcWalkerRoutesTable();
-            _log.info("Initializing Walkers Routes Table.");
         }
-
         return _instance;
     }
 
     private NpcWalkerRoutesTable() {
+        load();
     }
 
-    // FIXME: NPE while loading. :S
     public void load() {
-        _routes = new LinkedList<>();
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("SELECT route_id, npc_id, move_point, chatText, move_x, move_y, move_z, delay, running FROM walker_routes");
-            ResultSet rset = statement.executeQuery();
-            L2NpcWalkerNode route;
-            while (rset.next()) {
-                route = new L2NpcWalkerNode();
-                route.setRouteId(rset.getInt("route_id"));
-                route.setNpcId(rset.getInt("npc_id"));
-                route.setMovePoint(rset.getString("move_point"));
-                route.setChatText(rset.getString("chatText"));
-
-                route.setMoveX(rset.getInt("move_x"));
-                route.setMoveY(rset.getInt("move_y"));
-                route.setMoveZ(rset.getInt("move_z"));
-                route.setDelay(rset.getInt("delay"));
-                route.setRunning(rset.getBoolean("running"));
-
-                _routes.add(route);
+        _log.info("Initializing Walkers Routes Table.");
+        routes = new HashMap<>();
+        DatabaseAccess.getRepository(WalkerRoutesRepository.class).findAll().forEach(node ->{
+            if(!routes.containsKey(node.getNpcId())) {
+                routes.put(node.getNpcId(), new ArrayList<>());
             }
+            routes.get(node.getNpcId()).add(node);
+        });
 
-            rset.close();
-            statement.close();
-
-            _log.info("WalkerRoutesTable: Loaded " + _routes.size() + " Npc Walker Routes.");
-            rset.close();
-            statement.close();
-        } catch (Exception e) {
-            _log.error("WalkerRoutesTable: Error while loading Npc Walkers Routes: " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        _log.info("WalkerRoutesTable: Loaded {} NpcTemplate Walker Routes.", routes.size());
     }
 
-    public List<L2NpcWalkerNode> getRouteForNpc(int id) {
-        List<L2NpcWalkerNode> _return = new LinkedList<>();
-
-        for (L2NpcWalkerNode n : _routes) {
-            if (n.getNpcId() == id) {
-                _return.add(n);
-            }
-        }
-        return _return;
-
+    public List<WalkerRouteNode> getRouteForNpc(int npcId) {
+        return routes.get(npcId);
     }
 }

@@ -23,7 +23,7 @@ import com.l2jbr.gameserver.ThreadPoolManager;
 import com.l2jbr.gameserver.model.L2Attackable;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.actor.knownlist.MonsterKnownList;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.util.MinionList;
 
 import java.util.Iterator;
@@ -58,7 +58,7 @@ public class L2MonsterInstance extends L2Attackable
 	 * @param objectId Identifier of the object to initialized
 	 * @param template the template to apply to the NPC
 	 */
-	public L2MonsterInstance(int objectId, L2NpcTemplate template)
+	public L2MonsterInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 		getKnownList(); // init knownlist
@@ -97,7 +97,7 @@ public class L2MonsterInstance extends L2Attackable
 	@Override
 	public boolean isAggressive()
 	{
-		return (getTemplate().aggroRange > 0) && !isEventMob;
+		return (getTemplate().getAggro() > 0) && !isEventMob;
 	}
 	
 	@Override
@@ -105,7 +105,7 @@ public class L2MonsterInstance extends L2Attackable
 	{
 		super.onSpawn();
 		
-		if (getTemplate().getMinionData() != null)
+		if (getTemplate().getMinions() != null)
 		{
 			try
 			{

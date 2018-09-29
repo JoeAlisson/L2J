@@ -20,16 +20,16 @@ package com.l2jbr.gameserver.model.actor.instance;
 
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.Announcements;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.instancemanager.CoupleManager;
 import com.l2jbr.gameserver.model.Inventory;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Skill;
 import com.l2jbr.gameserver.model.L2World;
-import com.l2jbr.gameserver.model.entity.Couple;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Wedding;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 
 public class L2WeddingManagerInstance extends L2NpcInstance
@@ -39,7 +39,7 @@ public class L2WeddingManagerInstance extends L2NpcInstance
 	 * @param objectId
 	 * @param template
 	 */
-	public L2WeddingManagerInstance(int objectId, L2NpcTemplate template)
+	public L2WeddingManagerInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 	}
@@ -70,7 +70,7 @@ public class L2WeddingManagerInstance extends L2NpcInstance
 			if (!canInteract(player))
 			{
 				// Notify the L2PcInstance AI with AI_INTENTION_INTERACT
-				player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+				player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
 			}
 			else
 			{
@@ -134,7 +134,7 @@ public class L2WeddingManagerInstance extends L2NpcInstance
 		{
 			// accept the wedding request
 			player.setMarryAccepted(true);
-			Couple couple = CoupleManager.getInstance().getCouple(player.getCoupleId());
+			Wedding couple = CoupleManager.getInstance().getCouple(player.getCoupleId());
 			couple.marry();
 			
 			// messages to the couple

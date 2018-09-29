@@ -21,15 +21,15 @@ package com.l2jbr.gameserver.model.actor.instance;
 import com.l2jbr.commons.Config;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.ai.L2AttackableAI;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.knownlist.GuardKnownList;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.MyTargetSelected;
 import com.l2jbr.gameserver.serverpackets.SocialAction;
 import com.l2jbr.gameserver.serverpackets.ValidateLocation;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public final class L2GuardInstance extends L2Attackable
 		@Override
 		public void run()
 		{
-			if (getAI().getIntention() == CtrlIntention.AI_INTENTION_IDLE)
+			if (getAI().getIntention() == Intention.AI_INTENTION_IDLE)
 			{
 				returnHome();
 			}
@@ -71,7 +71,7 @@ public final class L2GuardInstance extends L2Attackable
 	 * @param objectId Identifier of the object to initialized
 	 * @param template the template to apply to the NPC
 	 */
-	public L2GuardInstance(int objectId, L2NpcTemplate template)
+	public L2GuardInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 		getKnownList(); // init knownlist
@@ -139,7 +139,7 @@ public final class L2GuardInstance extends L2Attackable
 			
 			clearAggroList();
 			
-			getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, new L2CharPosition(_homeX, _homeY, _homeZ, 0));
+			getAI().setIntention(Intention.AI_INTENTION_MOVE_TO, new L2Position(_homeX, _homeY, _homeZ, 0));
 		}
 	}
 	
@@ -164,7 +164,7 @@ public final class L2GuardInstance extends L2Attackable
 		L2WorldRegion region = L2World.getInstance().getRegion(getX(), getY());
 		if ((region != null) && (!region.isActive()))
 		{
-			((L2AttackableAI) getAI()).stopAITask();
+			((L2AttackableAI) getAI()).stopAITask(false);
 		}
 	}
 	
@@ -250,7 +250,7 @@ public final class L2GuardInstance extends L2Attackable
 				}
 				
 				// Set the L2PcInstance Intention to AI_INTENTION_ATTACK
-				player.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, this);
+				player.getAI().setIntention(Intention.AI_INTENTION_ATTACK, this);
 			}
 			else
 			{
@@ -258,7 +258,7 @@ public final class L2GuardInstance extends L2Attackable
 				if (!canInteract(player))
 				{
 					// Set the L2PcInstance Intention to AI_INTENTION_INTERACT
-					player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+					player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
 				}
 				else
 				{

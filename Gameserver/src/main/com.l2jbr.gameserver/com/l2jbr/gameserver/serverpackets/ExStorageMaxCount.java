@@ -22,7 +22,7 @@ import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 
 
 /**
- * Format: (ch)ddddddd d: Number of Inventory Slots d: Number of Warehouse Slots d: Number of Freight Slots (unconfirmed) (200 for a low level dwarf) d: Private Sell Store Slots (unconfirmed) (4 for a low level dwarf) d: Private Buy Store Slots (unconfirmed) (5 for a low level dwarf) d: Dwarven
+ * Format: (ch)ddddddd d: Number of Inventory Slots d: Number of Warehouse Slots d: Number of Freight Slots (unconfirmed) (200 for a low level DWARF) d: Private Sell Store Slots (unconfirmed) (4 for a low level DWARF) d: Private Buy Store Slots (unconfirmed) (5 for a low level DWARF) d: Dwarven
  * Recipe Book Slots d: Normal Recipe Book Slots
  * @author -Wooden- format from KenM
  */
@@ -57,16 +57,16 @@ public class ExStorageMaxCount extends L2GameServerPacket
 	@Override
 	protected void writeImpl()
 	{
-		writeC(0xfe);
-		writeH(0x2e);
+		writeByte(0xfe);
+		writeShort(0x2e);
 		
-		writeD(_inventory);
-		writeD(_warehouse);
-		writeD(_freight);
-		writeD(_privateSell);
-		writeD(_privateBuy);
-		writeD(_receipeD);
-		writeD(_recipe);
+		writeInt(_inventory);
+		writeInt(_warehouse);
+		writeInt(_freight);
+		writeInt(_privateSell);
+		writeInt(_privateBuy);
+		writeInt(_receipeD);
+		writeInt(_recipe);
 		
 	}
 	

@@ -17,7 +17,9 @@
  */
 package com.l2jbr.loginserver;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
+import com.l2jbr.commons.database.GameserverRepository;
+import com.l2jbr.commons.database.model.GameServers;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.commons.xml.XMLDocumentFactory;
 import com.l2jbr.loginserver.gameserverpackets.ServerStatus;
@@ -37,6 +39,7 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -50,7 +53,7 @@ public class GameServerTable {
     private static Map<Integer, String> _serverNames = new LinkedHashMap<>();
 
     // Game Server Table
-    private final Map<Integer, GameServerInfo> _gameServerTable = new LinkedHashMap<>();
+    private final Map<Integer, GameServerInfo> _gameServerTable = new ConcurrentHashMap<>();
 
     // RSA Config
     private static final int KEYS_SIZE = 10;
@@ -112,23 +115,13 @@ public class GameServerTable {
 
     }
 
-    private void loadRegisteredGameServers() throws SQLException {
-        java.sql.Connection con = null;
-        PreparedStatement statement = null;
-
-        int id;
-        con = L2DatabaseFactory.getInstance().getConnection();
-        statement = con.prepareStatement("SELECT * FROM gameservers");
-        ResultSet rset = statement.executeQuery();
-        GameServerInfo gsi;
-        while (rset.next()) {
-            id = rset.getInt("server_id");
-            gsi = new GameServerInfo(id, stringToHex(rset.getString("hexid")));
+    private void loadRegisteredGameServers() {
+        GameserverRepository repository = DatabaseAccess.getRepository(GameserverRepository.class);
+        repository.findAll().forEach(gameServer -> {
+            int id = gameServer.getId();
+            GameServerInfo gsi = new GameServerInfo(id, stringToHex(gameServer.getHexid()));
             _gameServerTable.put(id, gsi);
-        }
-        rset.close();
-        statement.close();
-        con.close();
+        });
     }
 
     public Map<Integer, GameServerInfo> getRegisteredGameServers() {
@@ -174,28 +167,9 @@ public class GameServerTable {
     }
 
     public void registerServerOnDB(byte[] hexId, int id, String externalHost) {
-        java.sql.Connection con = null;
-        PreparedStatement statement = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            statement = con.prepareStatement("INSERT INTO gameservers (hexid,server_id,host) values (?,?,?)");
-            statement.setString(1, hexToString(hexId));
-            statement.setInt(2, id);
-            statement.setString(3, externalHost);
-            statement.executeUpdate();
-            statement.close();
-        } catch (SQLException e) {
-            _log.warn("SQL error while saving gameserver: " + e);
-        } finally {
-            try {
-                statement.close();
-            } catch (Exception e) {
-            }
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        GameServers gameServer = new GameServers(id, hexToString(hexId), externalHost);
+        GameserverRepository repository = DatabaseAccess.getRepository(GameserverRepository.class);
+        repository.save(gameServer);
     }
 
     public String getServerNameById(int id) {

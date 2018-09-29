@@ -19,15 +19,18 @@
 package com.l2jbr.gameserver.handler.admincommandhandlers;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.handler.IAdminCommandHandler;
 import com.l2jbr.gameserver.model.GMAudit;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.Character;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterShortcutsRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.ItemRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.util.Optional;
 
 
 /**
@@ -75,68 +78,26 @@ public class AdminRepairChar implements IAdminCommandHandler
 		return (level >= REQUIRED_LEVEL);
 	}
 	
-	private void handleRepair(String command)
-	{
+	private void handleRepair(String command) {
 		String[] parts = command.split(" ");
-		if (parts.length != 2)
-		{
+		if (parts.length != 2) {
 			return;
 		}
-		
-		String cmd = "UPDATE characters SET x=-84318, y=244579, z=-3730 WHERE char_name=?";
-		java.sql.Connection connection = null;
-		try
-		{
-			connection = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement statement = connection.prepareStatement(cmd);
-			statement.setString(1, parts[1]);
-			statement.execute();
-			statement.close();
-			
-			statement = connection.prepareStatement("SELECT obj_id FROM characters where char_name=?");
-			statement.setString(1, parts[1]);
-			ResultSet rset = statement.executeQuery();
-			int objId = 0;
-			if (rset.next())
-			{
-				objId = rset.getInt(1);
-			}
-			
-			rset.close();
-			statement.close();
-			
-			if (objId == 0)
-			{
-				connection.close();
-				return;
-			}
-			
-			// connection = L2DatabaseFactory.getInstance().getConnection();
-			statement = connection.prepareStatement("DELETE FROM character_shortcuts WHERE char_obj_id=?");
-			statement.setInt(1, objId);
-			statement.execute();
-			statement.close();
-			
-			// connection = L2DatabaseFactory.getInstance().getConnection();
-			statement = connection.prepareStatement("UPDATE items SET loc=\"INVENTORY\" WHERE owner_id=?");
-			statement.setInt(1, objId);
-			statement.execute();
-			statement.close();
-			connection.close();
-		}
-		catch (Exception e)
-		{
-			_log.warn( "could not repair char:", e);
-		}
-		finally
-		{
-			try
-			{
-				connection.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
+
+        CharacterRepository characterRepository = DatabaseAccess.getRepository(CharacterRepository.class);
+        Optional<Character> optionalCharacter = characterRepository.findByCharName(parts[1]);
+
+        optionalCharacter.ifPresent(character -> {
+            character.updateLocation(-84318, 244579, -3730);
+
+            CharacterShortcutsRepository shortcutsRepository = DatabaseAccess.getRepository(CharacterShortcutsRepository.class);
+            shortcutsRepository.deleteById(character.getObjectId());
+
+            ItemRepository itemRepository = DatabaseAccess.getRepository(ItemRepository.class);
+            itemRepository.updateLocationByOwner(character.getId(), "INVENTORY");
+
+            characterRepository.save(character);
+        });
+
 	}
 }

@@ -18,99 +18,20 @@
  */
 package com.l2jbr.gameserver.datatables;
 
-import com.l2jbr.commons.L2DatabaseFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterRepository;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-
-/**
- * This class ...
- * @version $Revision: 1.3.2.2.2.1 $ $Date: 2005/03/27 15:29:18 $
- */
-public class CharNameTable
-{
-	private static Logger _log = LoggerFactory.getLogger(CharNameTable.class.getName());
+public class CharNameTable {
 	
-	private static CharNameTable _instance;
+	private CharNameTable() {}
 	
-	public static CharNameTable getInstance()
-	{
-		if (_instance == null)
-		{
-			_instance = new CharNameTable();
-		}
-		return _instance;
+	public static boolean doesCharNameExist(String name) {
+        CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+        return repository.existsByName(name);
 	}
 	
-	public boolean doesCharNameExist(String name)
-	{
-		boolean result = true;
-		java.sql.Connection con = null;
-		
-		try
-		{
-			con = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement statement = con.prepareStatement("SELECT account_name FROM characters WHERE char_name=?");
-			statement.setString(1, name);
-			ResultSet rset = statement.executeQuery();
-			result = rset.next();
-			rset.close();
-			statement.close();
-		}
-		catch (SQLException e)
-		{
-			_log.warn("could not check existing charname:" + e.getMessage());
-		}
-		finally
-		{
-			try
-			{
-				con.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
-		return result;
-	}
-	
-	public int accountCharNumber(String account)
-	{
-		java.sql.Connection con = null;
-		int number = 0;
-		
-		try
-		{
-			con = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement statement = con.prepareStatement("SELECT COUNT(char_name) FROM characters WHERE account_name=?");
-			statement.setString(1, account);
-			ResultSet rset = statement.executeQuery();
-			while (rset.next())
-			{
-				number = rset.getInt(1);
-			}
-			rset.close();
-			statement.close();
-		}
-		catch (SQLException e)
-		{
-			_log.warn("could not check existing char number:" + e.getMessage());
-		}
-		finally
-		{
-			try
-			{
-				con.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
-		
-		return number;
+	public static int accountCharNumber(String account) {
+	    CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+	    return repository.countByAccount(account);
 	}
 }

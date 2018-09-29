@@ -1,24 +1,7 @@
-/* This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
- *
- * http://www.gnu.org/copyleft/gpl.html
- */
 package com.l2jbr.gameserver.network;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.LoginServerThread;
 import com.l2jbr.gameserver.LoginServerThread.SessionKey;
 import com.l2jbr.gameserver.ThreadPoolManager;
@@ -28,18 +11,16 @@ import com.l2jbr.gameserver.model.CharSelectInfoPackage;
 import com.l2jbr.gameserver.model.L2World;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.entity.L2Event;
+import com.l2jbr.gameserver.model.entity.database.repository.*;
 import com.l2jbr.gameserver.serverpackets.L2GameServerPacket;
 import com.l2jbr.gameserver.serverpackets.ServerClose;
 import com.l2jbr.gameserver.serverpackets.UserInfo;
 import com.l2jbr.gameserver.util.EventData;
-import com.l2jbr.mmocore.MMOClient;
-import com.l2jbr.mmocore.MMOConnection;
+import org.l2j.mmocore.Client;
+import org.l2j.mmocore.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
-import java.nio.ByteBuffer;
-import java.sql.PreparedStatement;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -47,22 +28,24 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
-
+import static com.l2jbr.commons.util.Util.isNullOrEmpty;
 
 /**
  * Represents a client connected on Game Server
  *
  * @author KenM
  */
-public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
+public final class L2GameClient extends Client<Connection<L2GameClient>> {
     protected static final Logger _log = LoggerFactory.getLogger(L2GameClient.class.getName());
 
     /**
-     * CONNECTED - client has just connected AUTHED - client has authed but doesnt has character attached to it yet IN_GAME - client has selected a char and is in game
+     * CONNECTED - client has just connected
+     * AUTHED - client has authed but doesnt has character attached to it yet
+     * IN_GAME - client has selected a char and is in game
      *
      * @author KenM
      */
-    public static enum GameClientState {
+    public enum GameClientState {
         CONNECTED,
         AUTHED,
         IN_GAME
@@ -90,7 +73,7 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
     public byte packetsSentInSec = 0;
     public int packetsSentStartTick = 0;
 
-    public L2GameClient(MMOConnection<L2GameClient> con) {
+    public L2GameClient(Connection<L2GameClient> con) {
         super(con);
         state = GameClientState.CONNECTED;
         _connectionStartTime = System.currentTimeMillis();
@@ -116,16 +99,16 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
         return _connectionStartTime;
     }
 
+
     @Override
-    public boolean decrypt(ByteBuffer buf, int size) {
-        crypt.decrypt(buf.array(), buf.position(), size);
-        return true;
+    public int encrypt(byte[] data, int offset, int size) {
+        crypt.encrypt(data, offset, size);
+        return size;
     }
 
     @Override
-    public boolean encrypt(final ByteBuffer buf, final int size) {
-        crypt.encrypt(buf.array(), buf.position(), size);
-        buf.position(buf.position() + size);
+    public boolean decrypt(byte[] data, int offset, int size) {
+        crypt.decrypt(data, offset, size);
         return true;
     }
 
@@ -164,8 +147,8 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
     }
 
     public void sendPacket(L2GameServerPacket gsp) {
-        getConnection().sendPacket(gsp);
         gsp.runImpl();
+        writePacket(gsp);
     }
 
     public L2PcInstance markToDeleteChar(int charslot) {
@@ -174,32 +157,19 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
          * if (getActiveChar() != null) { saveCharToDisk(getActiveChar()); if (Config.DEBUG) { _log.debug("active Char saved"); } this.setActiveChar(null); }
          */
 
-        int objid = getObjectIdForSlot(charslot);
-        if (objid < 0) {
+        int objectId = getObjectIdForSlot(charslot);
+        if (objectId < 0) {
             return null;
         }
 
-        L2PcInstance character = L2PcInstance.load(objid);
+        L2PcInstance character = L2PcInstance.load(objectId);
         if (character.getClanId() != 0) {
             return character;
         }
 
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("UPDATE characters SET deletetime=? WHERE obj_id=?");
-            statement.setLong(1, System.currentTimeMillis() + (Config.DELETE_DAYS * 86400000L)); // 24*60*60*1000 = 86400000
-            statement.setInt(2, objid);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            _log.warn("Data error on update delete time of char: " + e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        long deleteTime = System.currentTimeMillis() + (Config.DELETE_DAYS * 86400000L);
+        CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+        repository.updateDeleteTime(objectId, deleteTime);
         return null;
     }
 
@@ -236,137 +206,71 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
         }
     }
 
-    public void markRestoredChar(int charslot) {
-        // have to make sure active character must be nulled
-        /*
-         * if (getActiveChar() != null) { saveCharToDisk (getActiveChar()); if (Config.DEBUG) _log.debug("active Char saved"); this.setActiveChar(null); }
-         */
-
-        int objid = getObjectIdForSlot(charslot);
-        if (objid < 0) {
+    public void markRestoredChar(int charSlot) {
+        int objId = getObjectIdForSlot(charSlot);
+        if (objId < 0) {
             return;
         }
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("UPDATE characters SET deletetime=0 WHERE obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            _log.error("Data error on restoring char: " + e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+
+        CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+        repository.updateDeleteTime(objId, 0);
     }
 
-    public static void deleteCharByObjId(int objid) {
-        if (objid < 0) {
+    public static void deleteCharByObjId(int objId) {
+        if (objId < 0) {
             return;
         }
 
-        java.sql.Connection con = null;
+        CharacterFriendRepository characterFriendRepository = DatabaseAccess.getRepository(CharacterFriendRepository.class);
+        characterFriendRepository.deleteFriends(objId);
 
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement;
+        CharacterHennasRepository characterHennasRepository = DatabaseAccess.getRepository(CharacterHennasRepository.class);
+        characterHennasRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_friends WHERE char_id=? OR friend_id=?");
-            statement.setInt(1, objid);
-            statement.setInt(2, objid);
-            statement.execute();
-            statement.close();
+        CharacterMacrosesRepository characterMacrosesRepository = DatabaseAccess.getRepository(CharacterMacrosesRepository.class);
+        characterMacrosesRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_hennas WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterQuestsRepository characterQuestsRepository = DatabaseAccess.getRepository(CharacterQuestsRepository.class);
+        characterQuestsRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_macroses WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterRecipebookRepository recipebookRepository = DatabaseAccess.getRepository(CharacterRecipebookRepository.class);
+        recipebookRepository.deleteAllByCharacter(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_quests WHERE char_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterShortcutsRepository shortcutsRepository = DatabaseAccess.getRepository(CharacterShortcutsRepository.class);
+        shortcutsRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_recipebook WHERE char_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterSkillsRepository skillsRepository = DatabaseAccess.getRepository(CharacterSkillsRepository.class);
+        skillsRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_shortcuts WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterSkillsSaveRepository skillsSaveRepository = DatabaseAccess.getRepository(CharacterSkillsSaveRepository.class);
+        skillsSaveRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_skills WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        CharacterSubclassesRepository subclassesRepository = DatabaseAccess.getRepository(CharacterSubclassesRepository.class);
+        subclassesRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_skills_save WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        HeroesRepository heroesRepository = DatabaseAccess.getRepository(HeroesRepository.class);
+        heroesRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM character_subclasses WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        OlympiadNoblesRepository noblesRepository = DatabaseAccess.getRepository(OlympiadNoblesRepository.class);
+        noblesRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM heroes WHERE char_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        SevenSignsRepository sevenSignsRepository = DatabaseAccess.getRepository(SevenSignsRepository.class);
+        sevenSignsRepository.deleteById(objId);
 
-            statement = con.prepareStatement("DELETE FROM olympiad_nobles WHERE char_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        PetsRepository repository = DatabaseAccess.getRepository(PetsRepository.class);
+        repository.deleteByOwner(objId);
 
-            statement = con.prepareStatement("DELETE FROM seven_signs WHERE char_obj_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        AugmentationsRepository augmentationsRepository = DatabaseAccess.getRepository(AugmentationsRepository.class);
+        augmentationsRepository.deleteByItemOwner(objId);
 
-            statement = con.prepareStatement("DELETE FROM pets WHERE item_obj_id IN (SELECT object_id FROM items WHERE items.owner_id=?)");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        ItemRepository itemRepository = DatabaseAccess.getRepository(ItemRepository.class);
+        itemRepository.deleteByOwner(objId);
 
-            statement = con.prepareStatement("DELETE FROM augmentations WHERE item_id IN (SELECT object_id FROM items WHERE items.owner_id=?)");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
+        MerchantLeaseRepository leaseRepository = DatabaseAccess.getRepository(MerchantLeaseRepository.class);
+        leaseRepository.deleteByPlayer(objId);
 
-            statement = con.prepareStatement("DELETE FROM items WHERE owner_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
-
-            statement = con.prepareStatement("DELETE FROM merchant_lease WHERE player_id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
-
-            statement = con.prepareStatement("DELETE FROM characters WHERE obj_Id=?");
-            statement.setInt(1, objid);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            _log.warn("Data error on deleting char: " + e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CharacterRepository characterRepository = DatabaseAccess.getRepository(CharacterRepository.class);
+        characterRepository.deleteById(objId);
     }
 
     public L2PcInstance loadCharFromDisk(int charslot) {
@@ -408,10 +312,6 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
         }
     }
 
-    public void close(L2GameServerPacket gsp) {
-        getConnection().close(gsp);
-    }
-
     /**
      * @param charslot
      * @return
@@ -425,22 +325,24 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
         return objectId.intValue();
     }
 
-    @Override
-    protected void onForcedDisconnection() {
-        _log.info("Client " + toString() + " disconnected abnormally.");
-    }
 
     /**
      * @see com.l2jbr.mmocore.MMOClient#onDisconnection()
      */
     @Override
     protected void onDisconnection() {
+        _log.info("Cliente Disconnected {}", this);
         // no long running tasks here, do it async
         try {
             ThreadPoolManager.getInstance().executeTask(new DisconnectTask());
         } catch (RejectedExecutionException e) {
             // server is closing
         }
+    }
+
+    @Override
+    public void onConnected() {
+
     }
 
     /**
@@ -499,14 +401,14 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
     @Override
     public String toString() {
         try {
-            InetAddress address = getConnection().getInetAddress();
+            String address = getHostAddress();
             switch (getState()) {
                 case CONNECTED:
-                    return "[IP: " + (address == null ? "disconnected" : address.getHostAddress()) + "]";
+                    return "[IP: " + (isNullOrEmpty(address) ? "disconnect" : address) + "]";
                 case AUTHED:
-                    return "[Account: " + getAccountName() + " - IP: " + (address == null ? "disconnected" : address.getHostAddress()) + "]";
+                    return "[Account: " + getAccountName() + " - IP: " + (isNullOrEmpty(address) ? "disconnect" : address) + "]";
                 case IN_GAME:
-                    return "[Character: " + (getActiveChar() == null ? "disconnected" : getActiveChar().getName()) + " - Account: " + getAccountName() + " - IP: " + (address == null ? "disconnected" : address.getHostAddress()) + "]";
+                    return "[Character: " + (getActiveChar() == null ? "disconnect" : getActiveChar().getName()) + " - Account: " + getAccountName() + " - IP: " + (isNullOrEmpty(address) ? "disconnect" : address) + "]";
                 default:
                     throw new IllegalStateException("Missing state on switch");
             }
@@ -537,7 +439,7 @@ public final class L2GameClient extends MMOClient<MMOConnection<L2GameClient>> {
                 if (player != null) // this should only happen on connection loss
                 {
 
-                    // we store all data from players who are disconnected while in an event in order to restore it in the next login
+                    // we store all data from players who are disconnect while in an event in order to restore it in the next login
                     if (player.atEvent) {
                         EventData data = new EventData(player.eventX, player.eventY, player.eventZ, player.eventkarma, player.eventpvpkills, player.eventpkkills, player.eventTitle, player.kills, player.eventSitForced);
                         L2Event.connectionLossData.put(player.getName(), data);

@@ -19,17 +19,17 @@
 package com.l2jbr.gameserver.handler.admincommandhandlers;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.NpcTable;
 import com.l2jbr.gameserver.datatables.SpawnTable;
 import com.l2jbr.gameserver.handler.IAdminCommandHandler;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.NpcHtmlMessage;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,8 +116,8 @@ public class AdminTeleport implements IAdminCommandHandler {
                 int y = Integer.parseInt(y1);
                 String z1 = st.nextToken();
                 int z = Integer.parseInt(z1);
-                L2CharPosition pos = new L2CharPosition(x, y, z, 0);
-                activeChar.getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, pos);
+                L2Position pos = new L2Position(x, y, z, 0);
+                activeChar.getAI().setIntention(Intention.AI_INTENTION_MOVE_TO, pos);
             } catch (Exception e) {
                 if (Config.DEBUG) {
                     _log.info("admin_walk: " + e);
@@ -213,7 +213,7 @@ public class AdminTeleport implements IAdminCommandHandler {
             String z1 = st.nextToken();
             int z = Integer.parseInt(z1);
 
-            activeChar.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+            activeChar.getAI().setIntention(Intention.AI_INTENTION_IDLE);
             activeChar.teleToLocation(x, y, z, false);
 
             SystemMessage sm = new SystemMessage(SystemMessageId.S1_S2);
@@ -297,7 +297,7 @@ public class AdminTeleport implements IAdminCommandHandler {
             // Common character information
             player.sendMessage("Admin is teleporting you.");
 
-            player.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+            player.getAI().setIntention(Intention.AI_INTENTION_IDLE);
             player.teleToLocation(x, y, z, true);
         }
     }
@@ -318,7 +318,7 @@ public class AdminTeleport implements IAdminCommandHandler {
             int y = player.getY();
             int z = player.getZ();
 
-            activeChar.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+            activeChar.getAI().setIntention(Intention.AI_INTENTION_IDLE);
             activeChar.teleToLocation(x, y, z, true);
 
             activeChar.sendMessage("You have teleported to character " + player.getName() + ".");
@@ -330,8 +330,8 @@ public class AdminTeleport implements IAdminCommandHandler {
         if ((obj != null) && (obj instanceof L2NpcInstance)) {
             L2NpcInstance target = (L2NpcInstance) obj;
 
-            int monsterTemplate = target.getTemplate().npcId;
-            L2NpcTemplate template1 = NpcTable.getInstance().getTemplate(monsterTemplate);
+            int monsterTemplate = target.getTemplate().getId();
+            NpcTemplate template1 = NpcTable.getInstance().getTemplate(monsterTemplate);
             if (template1 == null) {
                 activeChar.sendMessage("Incorrect monster template.");
                 _log.warn("ERROR: NPC " + target.getObjectId() + " has a 'null' template.");
@@ -364,7 +364,7 @@ public class AdminTeleport implements IAdminCommandHandler {
                 spawn.init();
 
                 SystemMessage sm = new SystemMessage(SystemMessageId.S1_S2);
-                sm.addString("Created " + template1.name + " on " + target.getObjectId() + ".");
+                sm.addString("Created " + template1.getName() + " on " + target.getObjectId() + ".");
                 activeChar.sendPacket(sm);
 
                 if (Config.DEBUG) {

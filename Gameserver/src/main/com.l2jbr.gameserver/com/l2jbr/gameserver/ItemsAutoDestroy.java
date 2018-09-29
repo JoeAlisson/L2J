@@ -22,19 +22,21 @@ import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.instancemanager.ItemsOnGroundManager;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2World;
-import com.l2jbr.gameserver.templates.L2EtcItemType;
+import com.l2jbr.gameserver.templates.ItemType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
 
+import static java.util.Objects.isNull;
+
 
 public class ItemsAutoDestroy {
     protected static final Logger _log = LoggerFactory.getLogger("ItemsAutoDestroy");
     private static ItemsAutoDestroy _instance;
-    protected List<L2ItemInstance> _items = null;
-    protected static long _sleep;
+    protected List<L2ItemInstance> _items;
+    private static long _sleep;
 
     private ItemsAutoDestroy() {
         _items = new LinkedList<>();
@@ -46,8 +48,8 @@ public class ItemsAutoDestroy {
     }
 
     public static ItemsAutoDestroy getInstance() {
-        if (_instance == null) {
-            System.out.println("Initializing ItemsAutoDestroy.");
+        if (isNull(_instance)) {
+            _log.info("Initializing ItemsAutoDestroy.");
             _instance = new ItemsAutoDestroy();
         }
         return _instance;
@@ -58,9 +60,9 @@ public class ItemsAutoDestroy {
         _items.add(item);
     }
 
-    public synchronized void removeItems() {
+    private synchronized void removeItems() {
         if (Config.DEBUG) {
-            _log.info("[ItemsAutoDestroy] : " + _items.size() + " items to check.");
+            _log.info("[ItemsAutoDestroy] : {} items to check.", _items.size());
         }
 
         if (_items.isEmpty()) {
@@ -72,7 +74,7 @@ public class ItemsAutoDestroy {
             if ((item == null) || (item.getDropTime() == 0) || (item.getLocation() != L2ItemInstance.ItemLocation.VOID)) {
                 _items.remove(item);
             } else {
-                if (item.getItemType() == L2EtcItemType.HERB) {
+                if (item.getItemType() == ItemType.HERB) {
                     if ((curtime - item.getDropTime()) > Config.HERB_AUTO_DESTROY_TIME) {
                         L2World.getInstance().removeVisibleObject(item, item.getWorldRegion());
                         L2World.getInstance().removeObject(item);

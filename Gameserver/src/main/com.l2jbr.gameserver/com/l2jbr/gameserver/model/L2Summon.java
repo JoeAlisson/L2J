@@ -19,8 +19,8 @@
 package com.l2jbr.gameserver.model;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.gameserver.ai.CtrlIntention;
-import com.l2jbr.gameserver.ai.L2CharacterAI;
+import com.l2jbr.gameserver.ai.AI;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.ai.L2SummonAI;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.model.L2Skill.SkillTargetType;
@@ -31,11 +31,11 @@ import com.l2jbr.gameserver.model.actor.knownlist.SummonKnownList;
 import com.l2jbr.gameserver.model.actor.stat.SummonStat;
 import com.l2jbr.gameserver.model.actor.status.SummonStatus;
 import com.l2jbr.gameserver.model.base.Experience;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
 import com.l2jbr.gameserver.taskmanager.DecayTaskManager;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
-import com.l2jbr.gameserver.templates.L2Weapon;
 
 
 public abstract class L2Summon extends L2PlayableInstance
@@ -60,14 +60,13 @@ public abstract class L2Summon extends L2PlayableInstance
 	private final int _spiritShotsPerHit = 1;
 	protected boolean _showSummonAnimation;
 	
-	public class AIAccessor extends L2Character.AIAccessor
-	{
+	public class AIAccessor extends L2Character.AIAccessor {
 		protected AIAccessor()
 		{
 		}
-		
-		public L2Summon getSummon()
-		{
+
+		@Override
+		public L2Summon getActor() {
 			return L2Summon.this;
 		}
 		
@@ -82,7 +81,7 @@ public abstract class L2Summon extends L2PlayableInstance
 		}
 	}
 	
-	public L2Summon(int objectId, L2NpcTemplate template, L2PcInstance owner)
+	public L2Summon(int objectId, NpcTemplate template, L2PcInstance owner)
 	{
 		super(objectId, template);
 		getKnownList(); // init knownlist
@@ -93,7 +92,7 @@ public abstract class L2Summon extends L2PlayableInstance
 		_owner = owner;
 		_ai = new L2SummonAI(new AIAccessor());
 		
-		setXYZInvisible(owner.getX() + 50, owner.getY() + 100, owner.getZ() + 100);
+		setPositionInvisible(owner.getX() + 50, owner.getY() + 100, owner.getZ() + 100);
 	}
 	
 	@Override
@@ -127,7 +126,7 @@ public abstract class L2Summon extends L2PlayableInstance
 	}
 	
 	@Override
-	public L2CharacterAI getAI()
+	public AI getAI()
 	{
 		if (_ai == null)
 		{
@@ -144,9 +143,9 @@ public abstract class L2Summon extends L2PlayableInstance
 	}
 	
 	@Override
-	public L2NpcTemplate getTemplate()
+	public NpcTemplate getTemplate()
 	{
-		return (L2NpcTemplate) super.getTemplate();
+		return (NpcTemplate) super.getTemplate();
 	}
 	
 	// this defines the action buttons, 1 for Summon, 2 for Pets
@@ -224,7 +223,7 @@ public abstract class L2Summon extends L2PlayableInstance
 	
 	public final int getNpcId()
 	{
-		return getTemplate().npcId;
+		return getTemplate().getId();
 	}
 	
 	public void setPvpFlag(byte pvpFlag)
@@ -379,11 +378,11 @@ public abstract class L2Summon extends L2PlayableInstance
 		_follow = state;
 		if (_follow)
 		{
-			getAI().setIntention(CtrlIntention.AI_INTENTION_FOLLOW, getOwner());
+			getAI().setIntention(Intention.AI_INTENTION_FOLLOW, getOwner());
 		}
 		else
 		{
-			getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE, null);
+			getAI().setIntention(Intention.AI_INTENTION_IDLE, null);
 		}
 	}
 	
@@ -413,8 +412,7 @@ public abstract class L2Summon extends L2PlayableInstance
 		return 0;
 	}
 	
-	public L2Weapon getActiveWeapon()
-	{
+	public Weapon getActiveWeapon() {
 		return null;
 	}
 	
@@ -445,7 +443,7 @@ public abstract class L2Summon extends L2PlayableInstance
 	}
 	
 	@Override
-	public L2Weapon getActiveWeaponItem()
+	public Weapon getActiveWeaponItem()
 	{
 		return null;
 	}
@@ -457,7 +455,7 @@ public abstract class L2Summon extends L2PlayableInstance
 	}
 	
 	@Override
-	public L2Weapon getSecondaryWeaponItem()
+	public Weapon getSecondaryWeaponItem()
 	{
 		return null;
 	}
@@ -644,7 +642,7 @@ public abstract class L2Summon extends L2PlayableInstance
 		}
 		
 		// Notify the AI with AI_INTENTION_CAST and target
-		getAI().setIntention(CtrlIntention.AI_INTENTION_CAST, skill, target);
+		getAI().setIntention(Intention.AI_INTENTION_CAST, skill, target);
 	}
 	
 	@Override

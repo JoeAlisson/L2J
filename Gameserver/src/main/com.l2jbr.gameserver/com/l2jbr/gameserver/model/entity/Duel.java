@@ -19,7 +19,7 @@
 package com.l2jbr.gameserver.model.entity;
 
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.instancemanager.DuelManager;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2Effect;
@@ -257,22 +257,22 @@ public class Duel {
         if (_partyDuel) {
             for (L2PcInstance temp : _playerA.getParty().getPartyMembers()) {
                 temp.abortCast();
-                temp.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+                temp.getAI().setIntention(Intention.AI_INTENTION_ACTIVE);
                 temp.setTarget(null);
                 temp.sendPacket(af);
             }
             for (L2PcInstance temp : _playerB.getParty().getPartyMembers()) {
                 temp.abortCast();
-                temp.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+                temp.getAI().setIntention(Intention.AI_INTENTION_ACTIVE);
                 temp.setTarget(null);
                 temp.sendPacket(af);
             }
         } else {
             _playerA.abortCast();
             _playerB.abortCast();
-            _playerA.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+            _playerA.getAI().setIntention(Intention.AI_INTENTION_ACTIVE);
             _playerA.setTarget(null);
-            _playerB.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+            _playerB.getAI().setIntention(Intention.AI_INTENTION_ACTIVE);
             _playerB.setTarget(null);
             _playerA.sendPacket(af);
             _playerB.sendPacket(af);
@@ -286,7 +286,7 @@ public class Duel {
      * Check if a player engaged in pvp combat (only for 1on1 duels)
      *
      * @param sendMessage
-     * @return returns true if a duelist is engaged in Pvp combat
+     * @return returns true if a DUELIST is engaged in Pvp combat
      */
     public boolean isDuelistInPvp(boolean sendMessage) {
         if (_partyDuel) {
@@ -294,7 +294,7 @@ public class Duel {
             return false;
         } else if ((_playerA.getPvpFlag() != 0) || (_playerB.getPvpFlag() != 0)) {
             if (sendMessage) {
-                String engagedInPvP = "The duel was canceled because a duelist engaged in PvP combat.";
+                String engagedInPvP = "The duel was canceled because a DUELIST engaged in PvP combat.";
                 _playerA.sendMessage(engagedInPvP);
                 _playerB.sendMessage(engagedInPvP);
             }

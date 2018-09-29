@@ -22,19 +22,19 @@ import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.datatables.ItemTable;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.CropProcure;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Manor;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.actor.instance.L2ManorManagerInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.CropProcure;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2Item;
 import com.l2jbr.gameserver.util.Util;
 
 
@@ -53,8 +53,8 @@ public class RequestProcureCropList extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_size = readD();
-		if (((_size * 16) > _buf.remaining()) || (_size > 500))
+		_size = readInt();
+		if (((_size * 16) > availableData()) || (_size > 500))
 		{
 			_size = 0;
 			return;
@@ -62,13 +62,13 @@ public class RequestProcureCropList extends L2GameClientPacket
 		_items = new int[_size * 4];
 		for (int i = 0; i < _size; i++)
 		{
-			int objId = readD();
+			int objId = readInt();
 			_items[(i * 4) + 0] = objId;
-			int itemId = readD();
+			int itemId = readInt();
 			_items[(i * 4) + 1] = itemId;
-			int manorId = readD();
+			int manorId = readInt();
 			_items[(i * 4) + 2] = manorId;
-			long count = readD();
+			long count = readInt();
 			if (count > Integer.MAX_VALUE)
 			{
 				count = Integer.MAX_VALUE;
@@ -137,7 +137,7 @@ public class RequestProcureCropList extends L2GameClientPacket
 			{
 				CropProcure crop = CastleManager.getInstance().getCastleById(manorId).getCrop(itemId, CastleManorManager.PERIOD_CURRENT);
 				int rewardItemId = L2Manor.getInstance().getRewardItem(itemId, crop.getReward());
-				L2Item template = ItemTable.getInstance().getTemplate(rewardItemId);
+				ItemTemplate template = ItemTable.getInstance().getTemplate(rewardItemId);
 				weight += count * template.getWeight();
 				
 				if (!template.isStackable())
@@ -186,7 +186,7 @@ public class RequestProcureCropList extends L2GameClientPacket
 			{
 				continue;
 			}
-			
+
 			CropProcure crop = null;
 			
 			try
@@ -197,7 +197,7 @@ public class RequestProcureCropList extends L2GameClientPacket
 			{
 				continue;
 			}
-			if ((crop == null) || (crop.getId() == 0) || (crop.getPrice() == 0))
+			if ((crop == null) || (crop.getCropId() == 0) || (crop.getPrice() == 0))
 			{
 				continue;
 			}
@@ -212,7 +212,7 @@ public class RequestProcureCropList extends L2GameClientPacket
 			}
 			
 			int sellPrice = (count * L2Manor.getInstance().getCropBasicPrice(cropId));
-			int rewardPrice = ItemTable.getInstance().getTemplate(rewardItem).getReferencePrice();
+			int rewardPrice = ItemTable.getInstance().getTemplate(rewardItem).getPrice();
 			
 			if (rewardPrice == 0)
 			{
@@ -269,7 +269,7 @@ public class RequestProcureCropList extends L2GameClientPacket
 				crop.setAmount(crop.getAmount() - count);
 				if (Config.ALT_MANOR_SAVE_ALL_ACTIONS)
 				{
-					CastleManager.getInstance().getCastleById(manorId).updateCrop(crop.getId(), crop.getAmount(), CastleManorManager.PERIOD_CURRENT);
+					CastleManager.getInstance().getCastleById(manorId).updateCrop(crop.getCropId(), crop.getAmount(), CastleManorManager.PERIOD_CURRENT);
 				}
 				itemAdd = player.getInventory().addItem("Manor", rewardItem, rewardItemCount, player, manorManager);
 			}

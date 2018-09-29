@@ -17,16 +17,16 @@
  */
 package com.l2jbr.gameserver.model.actor.instance;
 
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.instancemanager.SiegeManager;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2SiegeClan;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.model.entity.Siege;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.MyTargetSelected;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.ValidateLocation;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 
 public class L2SiegeFlagInstance extends L2NpcInstance
@@ -34,7 +34,7 @@ public class L2SiegeFlagInstance extends L2NpcInstance
 	private final L2PcInstance _player;
 	private final Siege _siege;
 	
-	public L2SiegeFlagInstance(L2PcInstance player, int objectId, L2NpcTemplate template)
+	public L2SiegeFlagInstance(L2PcInstance player, int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 		
@@ -124,7 +124,7 @@ public class L2SiegeFlagInstance extends L2NpcInstance
 		{
 			if (isAutoAttackable(player) && (Math.abs(player.getZ() - getZ()) < 100))
 			{
-				player.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, this);
+				player.getAI().setIntention(Intention.AI_INTENTION_ATTACK, this);
 			}
 			else
 			{

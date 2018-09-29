@@ -17,7 +17,7 @@
  */
 package com.l2jbr.gameserver.instancemanager;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.SevenSigns;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.L2ClanMember;
@@ -25,34 +25,33 @@ import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.entity.Castle;
+import com.l2jbr.gameserver.model.entity.database.repository.CastleRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.ItemRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.LinkedList;
 import java.util.List;
 
+import static java.util.Objects.isNull;
 
 public class CastleManager {
-    // =========================================================
+
+    private static final Logger logger = LoggerFactory.getLogger(CastleManager.class);
     private static CastleManager _instance;
 
     public static final CastleManager getInstance() {
-        if (_instance == null) {
-            System.out.println("Initializing CastleManager");
+        if (isNull(_instance)) {
+            logger.info("Initializing CastleManager");
             _instance = new CastleManager();
             _instance.load();
         }
         return _instance;
     }
 
-    // =========================================================
 
-    // =========================================================
-    // Data Field
     private List<Castle> _castles;
 
-    // =========================================================
-    // Constructor
     private static final int _castleCirclets[] =
             {
                     0,
@@ -67,11 +66,7 @@ public class CastleManager {
                     8183
             };
 
-    public CastleManager() {
-    }
-
-    // =========================================================
-    // Method - Public
+    private CastleManager() { }
 
     public final int findNearestCastleIndex(L2Object obj) {
         int index = getCastleIndex(obj);
@@ -94,39 +89,10 @@ public class CastleManager {
         return index;
     }
 
-    // =========================================================
-    // Method - Private
     private final void load() {
-        java.sql.Connection con = null;
-        try {
-            PreparedStatement statement;
-            ResultSet rs;
-
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement("Select id from castle order by id");
-            rs = statement.executeQuery();
-
-            while (rs.next()) {
-                getCastles().add(new Castle(rs.getInt("id")));
-            }
-
-            statement.close();
-
-            System.out.println("Loaded: " + getCastles().size() + " castles");
-        } catch (Exception e) {
-            System.out.println("Exception: loadCastleData(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CastleRepository repository = DatabaseAccess.getRepository(CastleRepository.class);
+        repository.findAll().forEach(castle -> getCastles().add(new Castle(castle)));
     }
-
-    // =========================================================
-    // Property - Public
 
     public final Castle getCastleById(int castleId) {
         for (Castle temp : getCastles()) {
@@ -265,24 +231,9 @@ public class CastleManager {
                     // continue removing offline
                 }
             }
-            // else offline-player circlet removal
-            java.sql.Connection con = null;
-            try {
-                con = L2DatabaseFactory.getInstance().getConnection();
-                PreparedStatement statement = con.prepareStatement("DELETE FROM items WHERE owner_id = ? and item_id = ?");
-                statement.setInt(1, member.getObjectId());
-                statement.setInt(2, circletId);
-                statement.execute();
-                statement.close();
-            } catch (Exception e) {
-                System.out.println("Failed to remove castle circlets offline for player " + member.getName());
-                e.printStackTrace();
-            } finally {
-                try {
-                    con.close();
-                } catch (Exception e) {
-                }
-            }
+
+            ItemRepository repository = DatabaseAccess.getRepository(ItemRepository.class);
+            repository.deleteByOwnerAndItem(member.getObjectId(), circletId);
         }
     }
 }

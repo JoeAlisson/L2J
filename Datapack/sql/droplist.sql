@@ -31,8 +31,8 @@ CREATE TABLE `droplist` (
   `category` INT NOT NULL DEFAULT '0',
   `chance` INT NOT NULL DEFAULT '0',
   PRIMARY KEY  (`mobId`,`itemId`,`category`),
-  KEY `key_mobId` (`mobId`)
-) ENGINE=MyISAM;
+  INDEX (`mobId`)
+);
 
 -- 
 -- Dumping data for table `droplist`

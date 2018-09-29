@@ -30,10 +30,10 @@ import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.L2Spawn;
 import com.l2jbr.gameserver.model.L2World;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.NpcHtmlMessage;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,7 +225,7 @@ public class AdminSpawn implements IAdminCommandHandler
 			return;
 		}
 		
-		L2NpcTemplate template1;
+		NpcTemplate template1;
 		if (monsterId.matches("[0-9]*"))
 		{
 			// First parameter was an ID number
@@ -248,15 +248,15 @@ public class AdminSpawn implements IAdminCommandHandler
 			spawn.setAmount(mobCount);
 			spawn.setHeading(activeChar.getHeading());
 			spawn.setRespawnDelay(respawnTime);
-			if (RaidBossSpawnManager.getInstance().isDefined(spawn.getNpcid()))
+			if (RaidBossSpawnManager.getInstance().isDefined(spawn.getNpcId()))
 			{
-				activeChar.sendMessage("You cannot spawn another instance of " + template1.name + ".");
+				activeChar.sendMessage("You cannot spawn another instance of " + template1.getName() + ".");
 			}
 			else
 			{
-				if (RaidBossSpawnManager.getInstance().getValidTemplate(spawn.getNpcid()) != null)
+				if (RaidBossSpawnManager.getInstance().getValidTemplate(spawn.getNpcId()) != null)
 				{
-					RaidBossSpawnManager.getInstance().addNewSpawn(spawn, 0, template1.getStatsSet().getDouble("baseHpMax"), template1.getStatsSet().getDouble("baseMpMax"), permanent);
+					RaidBossSpawnManager.getInstance().addNewSpawn(spawn, 0, template1.getHp(), template1.getMp(), permanent);
 				}
 				else
 				{
@@ -267,7 +267,7 @@ public class AdminSpawn implements IAdminCommandHandler
 				{
 					spawn.stopRespawn();
 				}
-				activeChar.sendMessage("Created " + template1.name + " on " + target.getObjectId());
+				activeChar.sendMessage("Created " + template1.getName() + " on " + target.getObjectId());
 			}
 		}
 		catch (Exception e)
@@ -276,22 +276,21 @@ public class AdminSpawn implements IAdminCommandHandler
 		}
 	}
 	
-	private void showMonsters(L2PcInstance activeChar, int level, int from)
-	{
-		StringBuilder tb = new StringBuilder();
-		
-		L2NpcTemplate[] mobs = NpcTable.getInstance().getAllMonstersOfLevel(level);
+	private void showMonsters(L2PcInstance activeChar, int level, int from) {
+		var tb = new StringBuilder();
+		var mobs = NpcTable.getInstance().getAllMonstersOfLevel(level);
 		
 		// Start
-		tb.append("<html><title>Spawn Monster:</title><body><p> Level " + level + ":<br>Total Npc's : " + mobs.length + "<br>");
+		tb.append("<html><title>Spawn Monster:</title><body><p> Level " + level + ":<br>Total NpcTemplate's : " + mobs.size() + "<br>");
 		String end1 = "<br><center><button value=\"Next\" action=\"bypass -h admin_spawn_index " + level + " $from$\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
 		String end2 = "<br><center><button value=\"Back\" action=\"bypass -h admin_show_spawns\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
 		
 		// Loop
 		boolean ended = true;
-		for (int i = from; i < mobs.length; i++)
+
+		for (int i = from; i < mobs.size(); i++)
 		{
-			String txt = "<a action=\"bypass -h admin_spawn_monster " + mobs[i].npcId + "\">" + mobs[i].name + "</a><br1>";
+			String txt = "<a action=\"bypass -h admin_spawn_monster " + mobs.get(i).getId() + "\">" + mobs.get(i).getName() + "</a><br1>";
 			
 			if ((tb.length() + txt.length() + end2.length()) > 8192)
 			{
@@ -316,19 +315,18 @@ public class AdminSpawn implements IAdminCommandHandler
 		activeChar.sendPacket(new NpcHtmlMessage(5, tb.toString()));
 	}
 	
-	private void showNpcs(L2PcInstance activeChar, String starting, int from)
-	{
-		StringBuilder tb = new StringBuilder();
-		L2NpcTemplate[] mobs = NpcTable.getInstance().getAllNpcStartingWith(starting);
+	private void showNpcs(L2PcInstance activeChar, String starting, int from) {
+		var tb = new StringBuilder();
+		var mobs = NpcTable.getInstance().getAllNpcStartingWith(starting);
 		// Start
-		tb.append("<html><title>Spawn Monster:</title><body><p> There are " + mobs.length + " Npcs whose name starts with " + starting + ":<br>");
-		String end1 = "<br><center><button value=\"Next\" action=\"bypass -h admin_npc_index " + starting + " $from$\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
-		String end2 = "<br><center><button value=\"Back\" action=\"bypass -h admin_show_npcs\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
+		tb.append("<html><title>Spawn Monster:</title><body><p> There are " + mobs.size() + " Npcs whose name starts with " + starting + ":<br>");
+		var end1 = "<br><center><button value=\"Next\" action=\"bypass -h admin_npc_index " + starting + " $from$\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
+		var end2 = "<br><center><button value=\"Back\" action=\"bypass -h admin_show_npcs\" width=40 height=15 back=\"sek.cbui94\" fore=\"sek.cbui92\"></center></body></html>";
 		// Loop
 		boolean ended = true;
-		for (int i = from; i < mobs.length; i++)
+		for (int i = from; i < mobs.size(); i++)
 		{
-			String txt = "<a action=\"bypass -h admin_spawn_monster " + mobs[i].npcId + "\">" + mobs[i].name + "</a><br1>";
+			String txt = "<a action=\"bypass -h admin_spawn_monster " + mobs.get(i).getId() + "\">" + mobs.get(i).getName() + "</a><br1>";
 			
 			if ((tb.length() + txt.length() + end2.length()) > 8192)
 			{

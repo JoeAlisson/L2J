@@ -24,15 +24,12 @@ import com.l2jbr.gameserver.model.zone.L2ZoneType;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
 
-
 /**
  * A mother-trees zone
  * @author durgus
  */
-public class L2MotherTreeZone extends L2ZoneType
-{
-	public L2MotherTreeZone()
-	{
+public class L2MotherTreeZone extends L2ZoneType {
+	public L2MotherTreeZone() {
 		super();
 	}
 	
@@ -47,7 +44,7 @@ public class L2MotherTreeZone extends L2ZoneType
 			{
 				for (L2PcInstance member : player.getParty().getPartyMembers())
 				{
-					if (member.getRace() != Race.elf)
+					if (member.getRace() != Race.ELF)
 					{
 						return;
 					}

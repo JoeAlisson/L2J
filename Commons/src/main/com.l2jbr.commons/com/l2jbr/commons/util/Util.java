@@ -14,14 +14,24 @@
  */
 package com.l2jbr.commons.util;
 
+import java.lang.reflect.Field;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.time.temporal.TemporalAccessor;
+import java.util.Collection;
+import java.util.Locale;
+import java.util.Optional;
 
-/**
- * This class ...
- *
- * @version $Revision: 1.2 $ $Date: 2004/06/27 08:12:59 $
- */
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 public class Util {
+
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime( FormatStyle.SHORT )
+            .withLocale( Locale.getDefault() )
+            .withZone( ZoneId.systemDefault() );
+
 
     public static boolean isInternalIP(String ipAddress) {
         return (ipAddress.startsWith("192.168.") || ipAddress.startsWith("10.") ||
@@ -29,6 +39,10 @@ public class Util {
                 // Removed because there are some net IPs in this range.
                 // TODO: Use regexp or something to only include 172.16.0.0 => 172.16.31.255
                 ipAddress.startsWith("127.0.0.1"));
+    }
+
+    public static String printData(byte[] raw) {
+        return printData(raw, raw.length);
     }
 
     public static String printData(byte[] data, int len) {
@@ -76,29 +90,59 @@ public class Util {
                     result.append('.');
                 }
             }
-
             result.append("\n");
         }
-
         return result.toString();
     }
 
     public static String fillHex(int data, int digits) {
-        String number = Integer.toHexString(data);
+        StringBuilder builder = new StringBuilder(Integer.toHexString(data));
 
-        for (int i = number.length(); i < digits; i++) {
-            number = "0" + number;
+        for (int i = builder.length(); i < digits; i++) {
+            builder.insert(0, "0");
         }
-
-        return number;
+        return builder.toString();
     }
 
-    /**
-     * @param raw
-     * @return
-     */
-    public static String printData(byte[] raw) {
-        return printData(raw, raw.length);
+    public static Optional<Field> getField(String fieldName, Class<?> clazz) {
+        Class<?> searchClass = clazz;
+        Field f = null;
+        while(nonNull(searchClass)) {
+            try {
+                f = searchClass.getDeclaredField(fieldName);
+                break;
+            } catch (NoSuchFieldException e) {
+                searchClass = searchClass.getSuperclass();
+            }
+        }
+        return Optional.of(f);
+    }
+
+    public static boolean isNullOrEmpty(String value) {
+        return isNull(value) || value.isEmpty();
+    }
+
+    public static boolean isNullOrEmpty(Collection<?> collection) {
+        return isNull(collection) || collection.isEmpty();
+    }
+
+    public static String capitalize(String text) {
+        if(isNullOrEmpty(text)){
+            return "";
+        }
+        String[] words  = text.split(" ");
+        StringBuilder builder = new StringBuilder();
+        for(String word : words) {
+            char[] caracteres = word.toLowerCase().toCharArray();
+            caracteres[0] = Character.toUpperCase(caracteres[0]);
+            builder.append(caracteres);
+            builder.append(" ");
+        }
+        return  builder.substring(0, builder.length()-1);
+    }
+
+    public static String formatDateTime(TemporalAccessor temporal) {
+        return formatter.format(temporal);
     }
 
 }

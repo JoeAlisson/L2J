@@ -18,16 +18,15 @@
  */
 package com.l2jbr.gameserver.model;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterShortcutsRepository;
 import com.l2jbr.gameserver.serverpackets.ExAutoSoulShot;
 import com.l2jbr.gameserver.serverpackets.ShortCutInit;
-import com.l2jbr.gameserver.templates.L2EtcItemType;
+import com.l2jbr.gameserver.templates.ItemType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -76,44 +75,14 @@ public class ShortCuts
 		registerShortCutInDb(shortcut, oldShortCut);
 	}
 	
-	private void registerShortCutInDb(L2ShortCut shortcut, L2ShortCut oldShortCut)
-	{
-		if (oldShortCut != null)
-		{
+	private void registerShortCutInDb(L2ShortCut shortcut, L2ShortCut oldShortCut) {
+		if (oldShortCut != null) {
 			deleteShortCutFromDb(oldShortCut);
 		}
-		
-		java.sql.Connection con = null;
-		
-		try
-		{
-			con = L2DatabaseFactory.getInstance().getConnection();
-			
-			PreparedStatement statement = con.prepareStatement("REPLACE INTO character_shortcuts (char_obj_id,slot,page,type,shortcut_id,level,class_index) values(?,?,?,?,?,?,?)");
-			statement.setInt(1, _owner.getObjectId());
-			statement.setInt(2, shortcut.getSlot());
-			statement.setInt(3, shortcut.getPage());
-			statement.setInt(4, shortcut.getType());
-			statement.setInt(5, shortcut.getId());
-			statement.setInt(6, shortcut.getLevel());
-			statement.setInt(7, _owner.getClassIndex());
-			statement.execute();
-			statement.close();
-		}
-		catch (Exception e)
-		{
-			_log.warn("Could not store character shortcut: " + e);
-		}
-		finally
-		{
-			try
-			{
-				con.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
+
+		CharacterShortcutsRepository repository = DatabaseAccess.getRepository(CharacterShortcutsRepository.class);
+        repository.saveOrUpdate(_owner.getObjectId(), shortcut.getId(), shortcut.getSlot(), shortcut.getPage(), shortcut.getType(),
+                shortcut.getLevel(), _owner.getClassIndex());
 	}
 	
 	/**
@@ -133,7 +102,7 @@ public class ShortCuts
 		{
 			L2ItemInstance item = _owner.getInventory().getItemByObjectId(old.getId());
 			
-			if ((item != null) && (item.getItemType() == L2EtcItemType.SHOT))
+			if ((item != null) && (item.getItemType() == ItemType.SHOT))
 			{
 				_owner.removeAutoSoulShot(item.getItemId());
 				_owner.sendPacket(new ExAutoSoulShot(item.getItemId(), 0));
@@ -166,86 +135,27 @@ public class ShortCuts
 			deleteShortCut(toRemove.getSlot(), toRemove.getPage());
 		}
 	}
-	
-	/**
-	 * @param shortcut
-	 */
-	private void deleteShortCutFromDb(L2ShortCut shortcut)
-	{
-		java.sql.Connection con = null;
-		
-		try
-		{
-			con = L2DatabaseFactory.getInstance().getConnection();
-			
-			PreparedStatement statement = con.prepareStatement("DELETE FROM character_shortcuts WHERE char_obj_id=? AND slot=? AND page=? AND class_index=?");
-			statement.setInt(1, _owner.getObjectId());
-			statement.setInt(2, shortcut.getSlot());
-			statement.setInt(3, shortcut.getPage());
-			statement.setInt(4, _owner.getClassIndex());
-			statement.execute();
-			statement.close();
-		}
-		catch (Exception e)
-		{
-			_log.warn("Could not delete character shortcut: " + e);
-		}
-		finally
-		{
-			try
-			{
-				con.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
+
+	private void deleteShortCutFromDb(L2ShortCut shortcut) {
+	    CharacterShortcutsRepository repository = DatabaseAccess.getRepository(CharacterShortcutsRepository.class);
+	    repository.delete(_owner.getObjectId(), shortcut.getSlot(), shortcut.getPage(), _owner.getClassIndex());
 	}
 	
 	public void restore()
 	{
 		_shortCuts.clear();
-		java.sql.Connection con = null;
-		
-		try
-		{
-			con = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement statement = con.prepareStatement("SELECT char_obj_id, slot, page, type, shortcut_id, level FROM character_shortcuts WHERE char_obj_id=? AND class_index=?");
-			statement.setInt(1, _owner.getObjectId());
-			statement.setInt(2, _owner.getClassIndex());
-			
-			ResultSet rset = statement.executeQuery();
-			
-			while (rset.next())
-			{
-				int slot = rset.getInt("slot");
-				int page = rset.getInt("page");
-				int type = rset.getInt("type");
-				int id = rset.getInt("shortcut_id");
-				int level = rset.getInt("level");
-				
-				L2ShortCut sc = new L2ShortCut(slot, page, type, id, level, 1);
-				_shortCuts.put(slot + (page * 12), sc);
-			}
-			
-			rset.close();
-			statement.close();
-		}
-		catch (Exception e)
-		{
-			_log.warn("Could not restore character shortcuts: " + e);
-		}
-		finally
-		{
-			try
-			{
-				con.close();
-			}
-			catch (Exception e)
-			{
-			}
-		}
-		
+        CharacterShortcutsRepository repository = DatabaseAccess.getRepository(CharacterShortcutsRepository.class);
+        repository.finAllByClassIndex(_owner.getObjectId(), _owner.getClassIndex()).forEach(shortcut -> {
+            int slot = shortcut.getSlot();
+            int page = shortcut.getPage();
+            int type = shortcut.getType();
+            int id = shortcut.getShortcutId();
+            int level = shortcut.getLevel();
+
+            L2ShortCut sc = new L2ShortCut(slot, page, type, id, level, 1);
+            _shortCuts.put(slot + (page * 12), sc);
+        });
+
 		// verify shortcuts
 		for (L2ShortCut sc : getAllShortCuts())
 		{

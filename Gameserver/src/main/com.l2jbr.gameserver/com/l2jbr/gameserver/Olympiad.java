@@ -24,7 +24,6 @@
 package com.l2jbr.gameserver;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.datatables.HeroSkillTable;
 import com.l2jbr.gameserver.datatables.SkillTable;
@@ -32,43 +31,37 @@ import com.l2jbr.gameserver.instancemanager.OlympiadStadiaManager;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PetInstance;
-import com.l2jbr.gameserver.model.entity.Hero;
+import com.l2jbr.gameserver.model.entity.Heroes;
+import com.l2jbr.gameserver.model.entity.database.Nobles;
+import com.l2jbr.gameserver.model.entity.database.repository.OlympiadNoblesRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ExOlympiadUserInfoSpectator;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.MagicSkillUser;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.StatsSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 
+import static com.l2jbr.commons.database.DatabaseAccess.getRepository;
+import static java.util.Objects.isNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class Olympiad {
     protected static final Logger _log = LoggerFactory.getLogger(Olympiad.class.getName());
 
     private static Olympiad _instance;
 
-    protected static Map<Integer, StatsSet> _nobles;
-    protected static List<StatsSet> _heroesToBe;
+    protected static Map<Integer, Nobles> _nobles;
+    protected static List<Nobles> _heroesToBe;
     protected static List<L2PcInstance> _nonClassBasedRegisters;
     protected static Map<Integer, List<L2PcInstance>> _classBasedRegisters;
 
     private static final String OLYMPIAD_CONFIG_FILE_PATH = "config/olympiad.properties";
     public static final String OLYMPIAD_HTML_FILE = "data/html/olympiad/";
-    private static final String OLYMPIAD_LOAD_NOBLES = "SELECT * from olympiad_nobles";
-    private static final String OLYMPIAD_SAVE_NOBLES = "INSERT INTO olympiad_nobles " + "values (?,?,?,?,?)";
-    private static final String OLYMPIAD_UPDATE_NOBLES = "UPDATE olympiad_nobles set " + "olympiad_points = ?, competitions_done = ? where char_id = ?";
-    private static final String OLYMPIAD_GET_HEROS = "SELECT char_id, char_name from " + "olympiad_nobles where class_id = ? and competitions_done >= 9 order by " + "olympiad_points desc, competitions_done desc";
-    private static final String GET_EACH_CLASS_LEADER = "SELECT char_name from " + "olympiad_nobles where class_id = ? order by olympiad_points desc, " + "competitions_done desc";
-    private static final String OLYMPIAD_DELETE_ALL = "DELETE from olympiad_nobles";
 
     private static final int COMP_START = Config.ALT_OLY_START_TIME; // 6PM
     private static final int COMP_MIN = Config.ALT_OLY_MIN; // 00 mins
@@ -227,7 +220,7 @@ public class Olympiad {
             }
         };
 
-    private static enum COMP_TYPE {
+    private enum COMP_TYPE {
         CLASSED,
         NON_CLASSED
     }
@@ -235,36 +228,22 @@ public class Olympiad {
     protected static OlympiadManager _manager;
 
     public static Olympiad getInstance() {
-        if (_instance == null) {
+        if (isNull(_instance)) {
             _instance = new Olympiad();
         }
         return _instance;
     }
 
-    public Olympiad() {
-        try {
-            load();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private Olympiad() {
+        load();
         if (_period == 0) {
             init();
         }
     }
 
-    private void load() throws IOException {
-        _nobles = new LinkedHashMap<>();
-
-        Properties OlympiadProperties = new Properties();
-        InputStream is = new FileInputStream(new File(OLYMPIAD_CONFIG_FILE_PATH));
-        OlympiadProperties.load(is);
-        is.close();
-
-        _currentCycle = Integer.parseInt(OlympiadProperties.getProperty("CurrentCycle", "1"));
-        _period = Integer.parseInt(OlympiadProperties.getProperty("Period", "0"));
-        _olympiadEnd = Long.parseLong(OlympiadProperties.getProperty("OlympiadEnd", "0"));
-        _validationEnd = Long.parseLong(OlympiadProperties.getProperty("ValdationEnd", "0"));
-        _nextWeeklyChange = Long.parseLong(OlympiadProperties.getProperty("NextWeeklyChange", "0"));
+    private void load() {
+        _nobles = new HashMap<>();
+        loadConfiguration();
 
         switch (_period) {
             case 0:
@@ -294,33 +273,15 @@ public class Olympiad {
                 }
                 break;
             default:
-                _log.warn("Olympiad System: Omg something went wrong in loading!! Period = " + _period);
+                _log.warn("Olympiad System: Omg something went wrong in loading!! Period = {}", _period);
                 return;
         }
 
-        try {
-            Connection con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement(OLYMPIAD_LOAD_NOBLES);
-            ResultSet rset = statement.executeQuery();
+        getRepository(OlympiadNoblesRepository.class).findAll().forEach(nobles -> {
+            int charId = requireNonNullElse(nobles.getId(), 0);
+            _nobles.put(charId, nobles);
+        });
 
-            while (rset.next()) {
-                StatsSet statDat = new StatsSet();
-                int charId = rset.getInt(CHAR_ID);
-                statDat.set(CLASS_ID, rset.getInt(CLASS_ID));
-                statDat.set(CHAR_NAME, rset.getString(CHAR_NAME));
-                statDat.set(POINTS, rset.getInt(POINTS));
-                statDat.set(COMP_DONE, rset.getInt(COMP_DONE));
-                statDat.set("to_save", false);
-
-                _nobles.put(charId, statDat);
-            }
-
-            rset.close();
-            statement.close();
-            con.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
         synchronized (this) {
             _log.info("Olympiad System: Loading Olympiad System....");
@@ -339,14 +300,14 @@ public class Olympiad {
                 milliToEnd = getMillisToValidationEnd();
             }
 
-            double numSecs = (milliToEnd / 1000) % 60;
-            double countDown = ((milliToEnd / 1000) - numSecs) / 60;
+            double numSecs = (milliToEnd / 1000.0) % 60;
+            double countDown = ((milliToEnd / 1000.0) - numSecs) / 60;
             int numMins = (int) Math.floor(countDown % 60);
             countDown = (countDown - numMins) / 60;
             int numHours = (int) Math.floor(countDown % 24);
             int numDays = (int) Math.floor((countDown - numHours) / 24);
 
-            _log.info("Olympiad System: In " + numDays + " days, " + numHours + " hours and " + numMins + " mins.");
+            _log.info("Olympiad System: In {} days {} hours and {} mins.", numDays, numHours,  numMins);
 
             if (_period == 0) {
                 _log.info("Olympiad System: Next Weekly Change is in....");
@@ -360,12 +321,25 @@ public class Olympiad {
                 int numHours2 = (int) Math.floor(countDown2 % 24);
                 int numDays2 = (int) Math.floor((countDown2 - numHours2) / 24);
 
-                _log.info("Olympiad System: " + numDays2 + " days, " + numHours2 + " hours and " + numMins2 + " mins.");
+                _log.info("Olympiad System: {} days, {} hours and {} mins.", numDays2, numHours2, numMins2);
             }
         }
+        _log.info("Olympiad System: Loaded {} Nobles.", _nobles.size());
+    }
 
-        _log.info("Olympiad System: Loaded " + _nobles.size() + " Nobles");
+    private void loadConfiguration() {
+        try(InputStream is = new FileInputStream(new File(OLYMPIAD_CONFIG_FILE_PATH));) {
+            Properties OlympiadProperties = new Properties();
+            OlympiadProperties.load(is);
 
+            _currentCycle = Integer.parseInt(OlympiadProperties.getProperty("CurrentCycle", "1"));
+            _period = Integer.parseInt(OlympiadProperties.getProperty("Period", "0"));
+            _olympiadEnd = Long.parseLong(OlympiadProperties.getProperty("OlympiadEnd", "0"));
+            _validationEnd = Long.parseLong(OlympiadProperties.getProperty("ValdationEnd", "0"));
+            _nextWeeklyChange = Long.parseLong(OlympiadProperties.getProperty("NextWeeklyChange", "0"));
+        } catch (Exception e) {
+            _log.error(e.getLocalizedMessage(), e);
+        }
     }
 
     protected void init() {
@@ -407,7 +381,7 @@ public class Olympiad {
 
             giveHeroBonus();
 
-            Hero.getInstance().computeNewHeroes(_heroesToBe);
+            Heroes.getInstance().computeNewHeroes(_heroesToBe);
 
             try {
                 save();
@@ -455,25 +429,19 @@ public class Olympiad {
             return false;
         }
 
-        if (noble.getBaseClass() != noble.getClassId().getId()) {
+        if (noble.getBaseClass() != noble.getPlayerClass().getId()) {
             sm = new SystemMessage(SystemMessageId.YOU_CANT_JOIN_THE_OLYMPIAD_WITH_A_SUB_JOB_CHARACTER);
             noble.sendPacket(sm);
             return false;
         }
 
         if (!_nobles.containsKey(noble.getObjectId())) {
-            StatsSet statDat = new StatsSet();
-            statDat.set(CLASS_ID, noble.getClassId().getId());
-            statDat.set(CHAR_NAME, noble.getName());
-            statDat.set(POINTS, DEFAULT_POINTS);
-            statDat.set(COMP_DONE, 0);
-            statDat.set("to_save", true);
-
-            _nobles.put(noble.getObjectId(), statDat);
+            var nobles = new Nobles(noble.getObjectId(), noble.getPlayerClass().getId(), noble.getName(), DEFAULT_POINTS, 0);
+            _nobles.put(noble.getObjectId(), nobles);
         }
 
-        if (_classBasedRegisters.containsKey(noble.getClassId().getId())) {
-            List<L2PcInstance> classed = _classBasedRegisters.get(noble.getClassId().getId());
+        if (_classBasedRegisters.containsKey(noble.getPlayerClass().getId())) {
+            List<L2PcInstance> classed = _classBasedRegisters.get(noble.getPlayerClass().getId());
             for (L2PcInstance partecipant : classed) {
                 if (partecipant.getObjectId() == noble.getObjectId()) {
                     sm = new SystemMessage(SystemMessageId.YOU_ARE_ALREADY_ON_THE_WAITING_LIST_TO_PARTICIPATE_IN_THE_GAME_FOR_YOUR_CLASS);
@@ -497,12 +465,12 @@ public class Olympiad {
         }
 
         if (classBased) {
-            if (_classBasedRegisters.containsKey(noble.getClassId().getId())) {
-                List<L2PcInstance> classed = _classBasedRegisters.get(noble.getClassId().getId());
+            if (_classBasedRegisters.containsKey(noble.getPlayerClass().getId())) {
+                List<L2PcInstance> classed = _classBasedRegisters.get(noble.getPlayerClass().getId());
                 classed.add(noble);
 
-                _classBasedRegisters.remove(noble.getClassId().getId());
-                _classBasedRegisters.put(noble.getClassId().getId(), classed);
+                _classBasedRegisters.remove(noble.getPlayerClass().getId());
+                _classBasedRegisters.put(noble.getPlayerClass().getId(), classed);
 
                 sm = new SystemMessage(SystemMessageId.YOU_HAVE_BEEN_REGISTERED_IN_A_WAITING_LIST_OF_CLASSIFIED_GAMES);
                 noble.sendPacket(sm);
@@ -510,7 +478,7 @@ public class Olympiad {
                 List<L2PcInstance> classed = new LinkedList<>();
                 classed.add(noble);
 
-                _classBasedRegisters.put(noble.getClassId().getId(), classed);
+                _classBasedRegisters.put(noble.getPlayerClass().getId(), classed);
 
                 sm = new SystemMessage(SystemMessageId.YOU_HAVE_BEEN_REGISTERED_IN_A_WAITING_LIST_OF_CLASSIFIED_GAMES);
                 noble.sendPacket(sm);
@@ -533,10 +501,10 @@ public class Olympiad {
             return false;
         }
         if (!_nonClassBasedRegisters.contains(noble)) {
-            if (!_classBasedRegisters.containsKey(noble.getClassId().getId())) {
+            if (!_classBasedRegisters.containsKey(noble.getPlayerClass().getId())) {
                 return false;
             }
-            final List<L2PcInstance> classed = _classBasedRegisters.get(noble.getClassId().getId());
+            final List<L2PcInstance> classed = _classBasedRegisters.get(noble.getPlayerClass().getId());
             if ((classed == null) || !classed.contains(noble)) {
                 return false;
             }
@@ -573,11 +541,11 @@ public class Olympiad {
         if (_nonClassBasedRegisters.contains(noble)) {
             _nonClassBasedRegisters.remove(noble);
         } else {
-            List<L2PcInstance> classed = _classBasedRegisters.get(noble.getClassId().getId());
+            List<L2PcInstance> classed = _classBasedRegisters.get(noble.getPlayerClass().getId());
             classed.remove(noble);
 
-            _classBasedRegisters.remove(noble.getClassId().getId());
-            _classBasedRegisters.put(noble.getClassId().getId(), classed);
+            _classBasedRegisters.remove(noble.getPlayerClass().getId());
+            _classBasedRegisters.put(noble.getPlayerClass().getId(), classed);
         }
 
         sm = new SystemMessage(SystemMessageId.YOU_HAVE_BEEN_DELETED_FROM_THE_WAITING_LIST_OF_A_GAME);
@@ -673,7 +641,7 @@ public class Olympiad {
 
         giveHeroBonus();
 
-        Hero.getInstance().computeNewHeroes(_heroesToBe);
+        Heroes.getInstance().computeNewHeroes(_heroesToBe);
 
         try {
             save();
@@ -776,20 +744,12 @@ public class Olympiad {
         }, getMillisToWeekChange(), WEEKLY_PERIOD);
     }
 
-    protected synchronized void addWeeklyPoints() {
+    private synchronized void addWeeklyPoints() {
         if (_period == 1) {
             return;
         }
 
-        for (Integer nobleId : _nobles.keySet()) {
-            StatsSet nobleInfo = _nobles.get(nobleId);
-            int currentPoints = nobleInfo.getInteger(POINTS);
-            currentPoints += WEEKLY_POINTS;
-            nobleInfo.set(POINTS, currentPoints);
-
-            _nobles.remove(nobleId);
-            _nobles.put(nobleId, nobleInfo);
-        }
+        _nobles.values().forEach(nobles -> nobles.addPoints(WEEKLY_POINTS));
     }
 
     public String[] getMatchList() {
@@ -861,104 +821,33 @@ public class Olympiad {
         return array;
     }
 
-    protected synchronized void saveNobleData() {
-        if (_nobles == null) {
+    private synchronized void saveNobleData() {
+        if (isNull(_nobles)) {
             return;
         }
 
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();) {
-            PreparedStatement statement;
-
-            for (Integer nobleId : _nobles.keySet()) {
-                StatsSet nobleInfo = _nobles.get(nobleId);
-
-                int charId = nobleId;
-                int classId = nobleInfo.getInteger(CLASS_ID);
-                String charName = nobleInfo.getString(CHAR_NAME);
-                int points = nobleInfo.getInteger(POINTS);
-                int compDone = nobleInfo.getInteger(COMP_DONE);
-                boolean toSave = nobleInfo.getBool("to_save");
-
-                if (toSave) {
-                    statement = con.prepareStatement(OLYMPIAD_SAVE_NOBLES);
-                    statement.setInt(1, charId);
-                    statement.setInt(2, classId);
-                    statement.setString(3, charName);
-                    statement.setInt(4, points);
-                    statement.setInt(5, compDone);
-                    statement.execute();
-
-                    statement.close();
-
-                    nobleInfo.set("to_save", false);
-
-                    _nobles.remove(nobleId);
-                    _nobles.put(nobleId, nobleInfo);
-                } else {
-                    statement = con.prepareStatement(OLYMPIAD_UPDATE_NOBLES);
-                    statement.setInt(1, points);
-                    statement.setInt(2, compDone);
-                    statement.setInt(3, charId);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-        } catch (SQLException e) {
-            _log.warn("Olympiad System: Couldnt save nobles info in db");
-        }
+        OlympiadNoblesRepository repository = getRepository(OlympiadNoblesRepository.class);
+        _nobles.values().forEach(repository::save);
     }
 
-    protected void sortHerosToBe() {
+    private void sortHerosToBe() {
         if (_period != 1) {
             return;
         }
 
-        _heroesToBe = new LinkedList<>();
+        _heroesToBe = new ArrayList<>();
 
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection()) {
-            PreparedStatement statement;
-            ResultSet rset;
-            StatsSet hero;
+        OlympiadNoblesRepository repository = getRepository(OlympiadNoblesRepository.class);
 
-            for (int i = 88; i < 119; i++) {
-                statement = con.prepareStatement(OLYMPIAD_GET_HEROS);
-                statement.setInt(1, i);
-                rset = statement.executeQuery();
-
-                if (rset.next()) {
-                    hero = new StatsSet();
-                    hero.set(CLASS_ID, i);
-                    hero.set(CHAR_ID, rset.getInt(CHAR_ID));
-                    hero.set(CHAR_NAME, rset.getString(CHAR_NAME));
-
-                    _heroesToBe.add(hero);
-                }
-
-                statement.close();
-                rset.close();
-            }
-        } catch (SQLException e) {
-            _log.warn("Olympiad System: Couldnt heros from db");
+        for (int classId = 88; classId < 119; classId++) {
+            repository.findWinnerByClassId(classId).ifPresent(_heroesToBe::add);
         }
     }
 
     public List<String> getClassLeaderBoard(int classId) {
         List<String> names = new LinkedList<>();
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-             PreparedStatement statement = con.prepareStatement(GET_EACH_CLASS_LEADER);) {
-            statement.setInt(1, classId);
-            try (ResultSet rset = statement.executeQuery()) {
-                while (rset.next()) {
-                    names.add(rset.getString(CHAR_NAME));
-                }
-            }
-            return names;
-        } catch (SQLException e) {
-            _log.warn("Olympiad System: Couldnt heros from db");
-        }
-
+        getRepository(OlympiadNoblesRepository.class).findAllNoblesByClassId(classId).forEach(nobles -> names.add(nobles.getCharName()));
         return names;
-
     }
 
     protected void giveHeroBonus() {
@@ -966,16 +855,11 @@ public class Olympiad {
             return;
         }
 
-        for (StatsSet hero : _heroesToBe) {
-            int charId = hero.getInteger(CHAR_ID);
+        for (Nobles hero : _heroesToBe) {
+            int charId = requireNonNullElse(hero.getId(), 0);
 
-            StatsSet noble = _nobles.get(charId);
-            int currentPoints = noble.getInteger(POINTS);
-            currentPoints += 300;
-            noble.set(POINTS, currentPoints);
-
-            _nobles.remove(charId);
-            _nobles.put(charId, noble);
+            Nobles noble = _nobles.get(charId);
+            noble.addPoints(300);
         }
     }
 
@@ -984,22 +868,19 @@ public class Olympiad {
             return 0;
         }
 
-        StatsSet noble = _nobles.get(objId);
-        if (noble == null) {
+        Nobles noble = _nobles.get(objId);
+        if (isNull(noble)) {
             return 0;
         }
-        int points = noble.getInteger(POINTS);
+
+        var points = noble.getOlympiadPoints();
         if (points <= 50) {
             return 0;
         }
 
-        noble.set(POINTS, 0);
-        _nobles.remove(objId);
-        _nobles.put(objId, noble);
-
-        points *= 1000;
-
-        return points;
+        noble.setOlympiadPoints(0);
+        var passes = points * 1000;
+        return passes;
     }
 
     public boolean isRegisteredInComp(L2PcInstance player) {
@@ -1007,8 +888,8 @@ public class Olympiad {
 
         if ((_nonClassBasedRegisters != null) && _nonClassBasedRegisters.contains(player)) {
             result = true;
-        } else if ((_classBasedRegisters != null) && _classBasedRegisters.containsKey(player.getClassId().getId())) {
-            List<L2PcInstance> classed = _classBasedRegisters.get(player.getClassId().getId());
+        } else if ((_classBasedRegisters != null) && _classBasedRegisters.containsKey(player.getPlayerClass().getId())) {
+            List<L2PcInstance> classed = _classBasedRegisters.get(player.getPlayerClass().getId());
             if (classed.contains(player)) {
                 result = true;
             }
@@ -1018,17 +899,16 @@ public class Olympiad {
     }
 
     public int getNoblePoints(int objId) {
-        if (_nobles.size() == 0) {
+        if (_nobles.isEmpty()) {
             return 0;
         }
 
-        StatsSet noble = _nobles.get(objId);
-        if (noble == null) {
+        Nobles noble = _nobles.get(objId);
+        if (isNull(noble)) {
             return 0;
         }
-        int points = noble.getInteger(POINTS);
 
-        return points;
+        return noble.getOlympiadPoints();
     }
 
     public int getCompetitionDone(int objId) {
@@ -1036,23 +916,16 @@ public class Olympiad {
             return 0;
         }
 
-        StatsSet noble = _nobles.get(objId);
-        if (noble == null) {
+        Nobles noble = _nobles.get(objId);
+        if (isNull(noble)) {
             return 0;
         }
-        int points = noble.getInteger(COMP_DONE);
-
-        return points;
+        return noble.getCompetitionsDone();
     }
 
     protected void deleteNobles() {
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-             PreparedStatement statement = con.prepareStatement(OLYMPIAD_DELETE_ALL)) {
-            statement.execute();
-        } catch (SQLException e) {
-            _log.warn("Olympiad System: Couldnt delete nobles from db");
-        }
-
+        OlympiadNoblesRepository repository = getRepository(OlympiadNoblesRepository.class);
+        repository.deleteAll();
         _nobles.clear();
     }
 
@@ -1417,7 +1290,7 @@ public class Olympiad {
                         player.abortCast();
                     }
 
-                    // Remove Hero Skills
+                    // Remove Heroes Skills
                     if (player.isHero()) {
                         for (L2Skill skill : HeroSkillTable.GetHeroSkills()) {
                             player.removeSkill(skill, false);
@@ -1447,7 +1320,7 @@ public class Olympiad {
                         party.removePartyMember(player);
                     }
 
-                    // Remove Hero Weapons
+                    // Remove Heroes Weapons
                     // check to prevent the using of weapon/shield on strider/wyvern
                     L2ItemInstance wpn = player.getInventory().getPaperdollItem(Inventory.PAPERDOLL_RHAND);
                     if (wpn == null) {
@@ -1528,19 +1401,18 @@ public class Olympiad {
             }
 
             if (_playerOneCrash) {
-                StatsSet playerOneStat;
-                playerOneStat = _nobles.get(_playerOneID);
-                int playerOnePoints = playerOneStat.getInteger(POINTS);
-                playerOneStat.set(POINTS, playerOnePoints - (playerOnePoints / 5));
-                _log.info("Olympia Result: " + _playerOneName + " vs " + _playerTwoName + " ... " + _playerOneName + " lost " + (playerOnePoints - (playerOnePoints / 5)) + " points for crash before teleport to arena");
+                var playerOne = _nobles.get(_playerOneID);
+
+                int playerOnePoints = playerOne.getOlympiadPoints();
+                playerOne.setOlympiadPoints(playerOnePoints - (playerOnePoints / 5));
+                _log.info("Olympia Result: {} vs {} ... {} lost {} points on crash before teleport to arena.",  _playerOneName, _playerTwoName, _playerOneName,  playerOnePoints - (playerOnePoints / 5));
             }
 
             if (_playerTwoCrash) {
-                StatsSet playerTwoStat;
-                playerTwoStat = _nobles.get(_playerTwoID);
-                int playerTwoPoints = playerTwoStat.getInteger(POINTS);
-                playerTwoStat.set(POINTS, playerTwoPoints - (playerTwoPoints / 5));
-                _log.info("Olympia Result: " + _playerOneName + " vs " + _playerTwoName + " ... " + _playerTwoName + " lost " + (playerTwoPoints - (playerTwoPoints / 5)) + " points for crash before teleport to arena");
+                var playerTwo = _nobles.get(_playerTwoID);
+                int playerTwoPoints = playerTwo.getOlympiadPoints();
+                playerTwo.setOlympiadPoints(playerTwoPoints - (playerTwoPoints / 5));
+                _log.info("Olympia Result: {} vs {} ... {} lost {} points on crash before teleport to arena.",  _playerOneName, _playerTwoName, _playerTwoName, playerTwoPoints - (playerTwoPoints / 5));
             }
 
             if (_playerOneCrash || _playerTwoCrash) {
@@ -1641,7 +1513,7 @@ public class Olympiad {
                         }
                     }
 
-                    // Add Hero Skills
+                    // Add Heroes Skills
                     if (player.isHero()) {
                         for (L2Skill skill : HeroSkillTable.GetHeroSkills()) {
                             player.addSkill(skill, false);
@@ -1659,17 +1531,14 @@ public class Olympiad {
                 return;
             }
 
-            StatsSet playerOneStat;
-            StatsSet playerTwoStat;
+            var playerOne = _nobles.get(_playerOneID);
+            var playerTwo = _nobles.get(_playerTwoID);
 
-            playerOneStat = _nobles.get(_playerOneID);
-            playerTwoStat = _nobles.get(_playerTwoID);
+            int playerOnePlayed = playerOne.getCompetitionsDone();
+            int playerTwoPlayed = playerTwo.getCompetitionsDone();
 
-            int playerOnePlayed = playerOneStat.getInteger(COMP_DONE);
-            int playerTwoPlayed = playerTwoStat.getInteger(COMP_DONE);
-
-            int playerOnePoints = playerOneStat.getInteger(POINTS);
-            int playerTwoPoints = playerTwoStat.getInteger(POINTS);
+            int playerOnePoints = playerOne.getOlympiadPoints();
+            int playerTwoPoints = playerTwo.getOlympiadPoints();
 
             double playerOneHp = 0;
             double hpDiffOne = 9999999;
@@ -1704,8 +1573,9 @@ public class Olympiad {
             if ((playerTwoHp == 0) || (hpDiffOne < hpDiffTwo)) {
                 int pointDiff;
                 pointDiff = (playerTwoPoints / 3);
-                playerOneStat.set(POINTS, playerOnePoints + pointDiff);
-                playerTwoStat.set(POINTS, playerTwoPoints - pointDiff);
+
+                playerOne.addPoints(pointDiff);
+                playerTwo.addPoints(- pointDiff);
 
                 _sm.addString(_playerOneName);
                 broadcastMessage(_sm, true);
@@ -1733,8 +1603,8 @@ public class Olympiad {
             } else if ((playerOneHp == 0) || (hpDiffOne > hpDiffTwo)) {
                 int pointDiff;
                 pointDiff = (playerOnePoints / 3);
-                playerTwoStat.set(POINTS, playerTwoPoints + pointDiff);
-                playerOneStat.set(POINTS, playerOnePoints - pointDiff);
+                playerTwo.addPoints(pointDiff);
+                playerOne.addPoints(- pointDiff);
 
                 _sm.addString(_playerTwo.getName());
                 broadcastMessage(_sm, true);
@@ -1766,14 +1636,8 @@ public class Olympiad {
             }
             _log.info("Olympia Result: " + _playerOneName + " vs " + _playerTwoName + " ... " + result);
 
-            playerOneStat.set(COMP_DONE, playerOnePlayed + 1);
-            playerTwoStat.set(COMP_DONE, playerTwoPlayed + 1);
-
-            _nobles.remove(_playerOneID);
-            _nobles.remove(_playerTwoID);
-
-            _nobles.put(_playerOneID, playerOneStat);
-            _nobles.put(_playerTwoID, playerTwoStat);
+            playerOne.addCompentitionDone(1);
+            playerTwo.addCompentitionDone(1);
 
             _sm = new SystemMessage(SystemMessageId.YOU_WILL_GO_BACK_TO_THE_VILLAGE_IN_S1_SECOND_S);
             _sm.addNumber(20);

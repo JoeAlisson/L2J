@@ -22,8 +22,10 @@ import com.l2jbr.gameserver.GameTimeController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import static java.util.Objects.isNull;
 
 /**
  * Flood protector
@@ -35,17 +37,14 @@ public class FloodProtector {
     private static FloodProtector _instance;
 
     public static final FloodProtector getInstance() {
-        if (_instance == null) {
+        if (isNull(_instance)) {
             _instance = new FloodProtector();
         }
         return _instance;
     }
 
-    // =========================================================
-    // Data Field
-    private final LinkedHashMap<Integer, Integer[]> _floodClient;
 
-    // =========================================================
+    private final Map<Integer, Integer[]> _floodClient;
 
     // reuse delays for protected actions (in game ticks 1 tick = 100ms)
     private static final int[] REUSEDELAY = new int[]
@@ -57,18 +56,16 @@ public class FloodProtector {
                                                     100
                                                 };
 
-    // protected actions
+
     public static final int PROTECTED_USEITEM = 0;
     public static final int PROTECTED_ROLLDICE = 1;
     public static final int PROTECTED_FIREWORK = 2;
     public static final int PROTECTED_ITEMPETSUMMON = 3;
     public static final int PROTECTED_HEROVOICE = 4;
 
-    // =========================================================
-    // Constructor
     private FloodProtector() {
         _log.info("Initializing FloodProtector");
-        _floodClient = new LinkedHashMap<>(Config.FLOODPROTECTOR_INITIALSIZE);
+        _floodClient = new ConcurrentHashMap<>(Config.FLOODPROTECTOR_INITIALSIZE);
     }
 
     /**

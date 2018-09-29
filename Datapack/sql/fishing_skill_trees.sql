@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS `fishing_skill_trees` (
   `costid` int(10) NOT NULL default '0',
   `cost` int(10) NOT NULL default '0',
   `isfordwarf` int(1) NOT NULL default '0',
-  PRIMARY KEY  (`skill_id`,`level`)
-) ENGINE=MyISAM;
+  PRIMARY KEY  (`skill_id`,`level`),
+  INDEX(isfordwarf)
+
+);
 --
 --  Records for table fishing_skill_trees
 --

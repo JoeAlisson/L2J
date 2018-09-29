@@ -21,9 +21,9 @@ package com.l2jbr.gameserver.clientpackets;
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.CropProcure;
+import com.l2jbr.gameserver.model.entity.database.CropProcure;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -43,21 +43,21 @@ public class RequestSetCrop extends L2GameClientPacket {
 
     @Override
     protected void readImpl() {
-        _manorId = readD();
-        _size = readD();
-        if (((_size * 13) > _buf.remaining()) || (_size > 500)) {
+        _manorId = readInt();
+        _size = readInt();
+        if (((_size * 13) > availableData()) || (_size > 500)) {
             _size = 0;
             return;
         }
         _items = new int[_size * 4];
         for (int i = 0; i < _size; i++) {
-            int itemId = readD();
+            int itemId = readInt();
             _items[(i * 4) + 0] = itemId;
-            int sales = readD();
+            int sales = readInt();
             _items[(i * 4) + 1] = sales;
-            int price = readD();
+            int price = readInt();
             _items[(i * 4) + 2] = price;
-            int type = readC();
+            int type = readUnsignedByte();
             _items[(i * 4) + 3] = type;
         }
     }
@@ -68,7 +68,7 @@ public class RequestSetCrop extends L2GameClientPacket {
             return;
         }
 
-        List<CropProcure> crops = new LinkedList<>();
+        List<CropProcure> crops = new ArrayList<>();
         for (int i = 0; i < _size; i++) {
             int id = _items[(i * 4) + 0];
             int sales = _items[(i * 4) + 1];

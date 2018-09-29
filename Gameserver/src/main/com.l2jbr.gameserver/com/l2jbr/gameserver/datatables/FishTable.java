@@ -18,118 +18,59 @@
  */
 package com.l2jbr.gameserver.datatables;
 
-import com.l2jbr.commons.L2DatabaseFactory;
-import com.l2jbr.gameserver.model.FishData;
+import com.l2jbr.commons.database.DatabaseAccess;
+import com.l2jbr.gameserver.model.entity.database.Fish;
+import com.l2jbr.gameserver.model.entity.database.repository.FishRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import static java.util.Objects.isNull;
 
 /**
  * @author -Nemesiss-
  */
 public class FishTable {
     private static Logger _log = LoggerFactory.getLogger(SkillTreeTable.class.getName());
-    private static final FishTable _instance = new FishTable();
+    private static FishTable _instance;
 
-    private static List<FishData> _fishsNormal;
-    private static List<FishData> _fishsEasy;
-    private static List<FishData> _fishsHard;
+    private Map<Integer, List<Fish>> fishData;
 
     public static FishTable getInstance() {
+        if(isNull(_instance)) {
+            _instance = new FishTable();
+        }
         return _instance;
     }
 
     private FishTable() {
-        // Create table that contains all fish datas
-        int count = 0;
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            _fishsEasy = new LinkedList<>();
-            _fishsNormal = new LinkedList<>();
-            _fishsHard = new LinkedList<>();
-            FishData fish;
-            PreparedStatement statement = con.prepareStatement("SELECT id, level, name, hp, hpregen, fish_type, fish_group, fish_guts, guts_check_time, wait_time, combat_time FROM fish ORDER BY id");
-            ResultSet Fishes = statement.executeQuery();
+        fishData = new HashMap<>();
+        DatabaseAccess.getRepository(FishRepository.class).findAll().forEach(fish -> {
+            if(!fishData.containsKey(fish.getGroup())) {
+                fishData.put(fish.getGroup(), new ArrayList<>());
+            }
+            fishData.get(fish.getGroup()).add(fish);
 
-            while (Fishes.next()) {
-                int id = Fishes.getInt("id");
-                int lvl = Fishes.getInt("level");
-                String name = Fishes.getString("name");
-                int hp = Fishes.getInt("hp");
-                int hpreg = Fishes.getInt("hpregen");
-                int type = Fishes.getInt("fish_type");
-                int group = Fishes.getInt("fish_group");
-                int fish_guts = Fishes.getInt("fish_guts");
-                int guts_check_time = Fishes.getInt("guts_check_time");
-                int wait_time = Fishes.getInt("wait_time");
-                int combat_time = Fishes.getInt("combat_time");
-                fish = new FishData(id, lvl, name, hp, hpreg, type, group, fish_guts, guts_check_time, wait_time, combat_time);
-                switch (fish.getGroup()) {
-                    case 0:
-                        _fishsEasy.add(fish);
-                        break;
-                    case 1:
-                        _fishsNormal.add(fish);
-                        break;
-                    case 2:
-                        _fishsHard.add(fish);
-                }
-            }
-            Fishes.close();
-            statement.close();
-            count = _fishsEasy.size() + _fishsNormal.size() + _fishsHard.size();
-        } catch (Exception e) {
-            _log.error( "error while creating fishes table" + e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
+        });
+        int count = 0;
+        for (List<Fish> value : fishData.values()) {
+            count += value.size();
         }
-        _log.info("FishTable: Loaded " + count + " Fishes.");
+        _log.info("FishTable: Loaded {} Fishes.", count);
     }
 
-    /**
-     * @param lvl
-     * @param type
-     * @param group
-     * @return List of Fish that can be fished
-     */
-    public List<FishData> getfish(int lvl, int type, int group) {
-        List<FishData> result = new LinkedList<>();
-        List<FishData> _Fishs = null;
-        switch (group) {
-            case 0:
-                _Fishs = _fishsEasy;
-                break;
-            case 1:
-                _Fishs = _fishsNormal;
-                break;
-            case 2:
-                _Fishs = _fishsHard;
-        }
-        if (_Fishs == null) {
-            // the fish list is empty
+
+    public List<Fish> getfish(int lvl, int type, int group) {
+        var fishes = fishData.get(group);
+        if (isNull(fishes)) {
             _log.warn("Fish are not defined !");
             return null;
         }
-        for (FishData f : _Fishs) {
-            if (f.getLevel() != lvl) {
-                continue;
-            }
-            if (f.getType() != type) {
-                continue;
-            }
 
-            result.add(f);
-        }
-        if (result.size() == 0) {
+        var result = fishes.parallelStream().filter(fish -> fish.getLevel() == lvl && fish.getType() == type).collect(Collectors.toList());
+        if (result.isEmpty()) {
             _log.warn("Cant Find Any Fish!? - Lvl: " + lvl + " Type: " + type);
         }
         return result;

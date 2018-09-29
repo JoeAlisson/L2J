@@ -17,21 +17,27 @@
  */
 package com.l2jbr.gameserver.instancemanager;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.datatables.ClanTable;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.entity.ClanHall;
+import com.l2jbr.gameserver.model.entity.database.repository.ClanHallRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
+import static com.l2jbr.gameserver.util.GameserverMessages.getMessage;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 /**
  * @author Steuf
  */
 public class ClanHallManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(ClanHallManager.class);
     private static ClanHallManager _instance;
 
     private final Map<Integer, ClanHall> _clanHall;
@@ -39,8 +45,8 @@ public class ClanHallManager {
     private boolean _loaded = false;
 
     public static ClanHallManager getInstance() {
-        if (_instance == null) {
-            System.out.println("Initializing ClanHallManager");
+        if (isNull(_instance)) {
+            logger.info("Initializing ClanHallManager");
             _instance = new ClanHallManager();
         }
         return _instance;
@@ -51,57 +57,31 @@ public class ClanHallManager {
     }
 
     private ClanHallManager() {
-        _clanHall = new LinkedHashMap<>();
-        _freeClanHall = new LinkedHashMap<>();
+        _clanHall = new HashMap<>();
+        _freeClanHall = new HashMap<>();
         load();
     }
 
-    /** Reload All Clan Hall */
-    /*
-     * public final void reload() Cant reload atm - would loose zone info { _clanHall.clear(); _freeClanHall.clear(); load(); }
-     */
-
-    /**
-     * Load All Clan Hall
-     */
-    private final void load() {
-        java.sql.Connection con = null;
-        try {
-            int id;
-            PreparedStatement statement;
-            ResultSet rs;
-            con = L2DatabaseFactory.getInstance().getConnection();
-            statement = con.prepareStatement("SELECT * FROM clanhall ORDER BY id");
-            rs = statement.executeQuery();
-            while (rs.next()) {
-                id = rs.getInt("id");
-                if (rs.getInt("ownerId") == 0) {
-                    _freeClanHall.put(id, new ClanHall(id, rs.getString("name"), rs.getInt("ownerId"), rs.getInt("lease"), rs.getString("desc"), rs.getString("location"), 0, rs.getInt("Grade"), rs.getBoolean("paid")));
+    private void load() {
+        ClanHallRepository repository = DatabaseAccess.getRepository(ClanHallRepository.class);
+        repository.findAll().forEach(clanHall -> {
+            int id = clanHall.getId();
+            if (clanHall.getOwnerId() == 0) {
+                _freeClanHall.put(id, new ClanHall(clanHall));
+            } else {
+                if (nonNull(ClanTable.getInstance().getClan(clanHall.getOwnerId()))) {
+                    _clanHall.put(id, new ClanHall(clanHall));
+                    ClanTable.getInstance().getClan(clanHall.getOwnerId()).setHasHideout(id);
                 } else {
-                    if (ClanTable.getInstance().getClan(rs.getInt("ownerId")) != null) {
-                        _clanHall.put(id, new ClanHall(id, rs.getString("name"), rs.getInt("ownerId"), rs.getInt("lease"), rs.getString("desc"), rs.getString("location"), rs.getLong("paidUntil"), rs.getInt("Grade"), rs.getBoolean("paid")));
-                        ClanTable.getInstance().getClan(rs.getInt("ownerId")).setHasHideout(id);
-                    } else {
-                        _freeClanHall.put(id, new ClanHall(id, rs.getString("name"), rs.getInt("ownerId"), rs.getInt("lease"), rs.getString("desc"), rs.getString("location"), rs.getLong("paidUntil"), rs.getInt("Grade"), rs.getBoolean("paid")));
-                        _freeClanHall.get(id).free();
-                        AuctionManager.getInstance().initNPC(id);
-                    }
-
+                    _freeClanHall.put(id, new ClanHall(clanHall));
+                    _freeClanHall.get(id).free();
+                    AuctionManager.getInstance().initNPC(id);
                 }
             }
-            statement.close();
-            System.out.println("Loaded: " + getClanHalls().size() + " clan halls");
-            System.out.println("Loaded: " + getFreeClanHalls().size() + " free clan halls");
-            _loaded = true;
-        } catch (Exception e) {
-            System.out.println("Exception: ClanHallManager.load(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        });
+        logger.info(getMessage("info.loaded.clanhall"), getClanHalls().size());
+        logger.info(getMessage("info.loaded.free.clanhall"), getFreeClanHalls().size());
+        _loaded = true;
     }
 
     /**

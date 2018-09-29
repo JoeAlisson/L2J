@@ -2,11 +2,13 @@ plugins {
     id "java"
     id "idea"
     id "eclipse"
+    id "application"
 }
 
 ext.moduleName = 'com.l2jbr.gameserver'
+mainClassName = "com.l2jbr.gameserver.GameServer"
 
-version '1.3.0'
+version '1.4'
 
 sourceSets {
     main {
@@ -19,24 +21,24 @@ sourceSets {
     }
 }
 
-configurations.all {
-    transitive = false
-}
-
 dependencies {
     compile project(':Commons')
     compile project(':Mmocore')
 
     compile 'org.slf4j:slf4j-api:1.8.0-beta2'
     compile 'org.python:jython-standalone:2.7.1'
-
+    compile 'org.springframework.data:spring-data-jdbc:1.0.0.M3'
     runtime 'org.apache.logging.log4j:log4j-core:2.11.0'
     runtime 'org.apache.logging.log4j:log4j-api:2.11.0'
     runtime 'org.apache.logging.log4j:log4j-slf4j-impl:2.11.0'
-    runtime 'org.beanshell:bsh:2.0b5'
-    runtime 'com.mchange:c3p0:0.9.5.2'
-    runtime 'com.mchange:mchange-commons-java:0.2.15'
-    runtime 'mysql:mysql-connector-java:8.0.9-rc'
+    runtime 'com.zaxxer:HikariCP:3.2.0'
+    runtimeOnly 'javax.xml.bind:jaxb-api:2.3.0'
+    runtimeOnly 'com.sun.xml.bind:jaxb-core:2.3.0.1'
+    runtimeOnly 'com.sun.xml.bind:jaxb-impl:2.3.0.1'
+    runtimeOnly 'javax.activation:activation:1.1.1'
+    runtimeOnly ('mysql:mysql-connector-java:8.0.11') {
+        transitive = false
+    }
 
 }
 
@@ -69,8 +71,6 @@ task zip(type: Zip, group: "Archive", description: "Zip Gameserver") {
     from(sourceSets.main.resources) {
         exclude('gameserver-messages*properties')
     }
-
-
 
     destinationDir project.buildDir
 }

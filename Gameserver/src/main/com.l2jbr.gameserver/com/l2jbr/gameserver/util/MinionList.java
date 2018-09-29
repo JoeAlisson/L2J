@@ -18,14 +18,15 @@ import com.l2jbr.commons.Config;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.datatables.NpcTable;
 import com.l2jbr.gameserver.idfactory.IdFactory;
-import com.l2jbr.gameserver.model.L2MinionData;
 import com.l2jbr.gameserver.model.actor.instance.L2MinionInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2MonsterInstance;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Minions;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -41,7 +42,7 @@ public class MinionList {
      * List containing the current spawned minions for this L2MonsterInstance
      */
     private final List<L2MinionInstance> minionReferences;
-    protected Map<Long, Integer> _respawnTasks = new LinkedHashMap<>();
+    protected Map<Long, Integer> _respawnTasks = new ConcurrentHashMap<>();
     private final L2MonsterInstance master;
 
     public MinionList(L2MonsterInstance pMaster) {
@@ -148,11 +149,11 @@ public class MinionList {
         if ((master == null) || master.isAlikeDead()) {
             return;
         }
-        List<L2MinionData> minions = master.getTemplate().getMinionData();
+        Set<Minions> minions = master.getTemplate().getMinions();
 
         synchronized (minionReferences) {
             int minionCount, minionId, minionsToSpawn;
-            for (L2MinionData minion : minions) {
+            for (Minions minion : minions) {
                 minionCount = minion.getAmount();
                 minionId = minion.getMinionId();
 
@@ -177,7 +178,7 @@ public class MinionList {
      */
     public void spawnSingleMinion(int minionid) {
         // Get the template of the Minion to spawn
-        L2NpcTemplate minionTemplate = NpcTable.getInstance().getTemplate(minionid);
+        NpcTemplate minionTemplate = NpcTable.getInstance().getTemplate(minionid);
 
         // Create and Init the Minion and generate its Identifier
         L2MinionInstance monster = new L2MinionInstance(IdFactory.getInstance().getNextId(), minionTemplate);
@@ -211,7 +212,7 @@ public class MinionList {
         monster.spawnMe(newX, newY, master.getZ());
 
         if (Config.DEBUG) {
-            _log.debug("Spawned minion template " + minionTemplate.npcId + " with objid: " + monster.getObjectId() + " to boss " + master.getObjectId() + " ,at: " + monster.getX() + " x, " + monster.getY() + " y, " + monster.getZ() + " z");
+            _log.debug("Spawned minion template " + minionTemplate.getId() + " with objid: " + monster.getObjectId() + " to boss " + master.getObjectId() + " ,at: " + monster.getX() + " x, " + monster.getY() + " y, " + monster.getZ() + " z");
         }
     }
 }

@@ -23,11 +23,11 @@ import com.l2jbr.gameserver.TradeController;
 import com.l2jbr.gameserver.cache.HtmCache;
 import com.l2jbr.gameserver.datatables.ItemTable;
 import com.l2jbr.gameserver.model.L2Object;
-import com.l2jbr.gameserver.model.L2TradeList;
 import com.l2jbr.gameserver.model.actor.instance.*;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
+import com.l2jbr.gameserver.model.entity.database.MerchantShop;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2Item;
 import com.l2jbr.gameserver.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +51,10 @@ public final class RequestBuyItem extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_listId = readD();
-		_count = readD();
+		_listId = readInt();
+		_count = readInt();
 		// count*8 is the size of a for iteration of each item
-		if (((_count * 2) < 0) || ((_count * 8) > _buf.remaining()) || (_count > Config.MAX_ITEM_IN_PACKET))
+		if (((_count * 2) < 0) || ((_count * 8) > availableData()) || (_count > Config.MAX_ITEM_IN_PACKET))
 		{
 			_count = 0;
 		}
@@ -62,9 +62,9 @@ public final class RequestBuyItem extends L2GameClientPacket
 		_items = new int[_count * 2];
 		for (int i = 0; i < _count; i++)
 		{
-			int itemId = readD();
+			int itemId = readInt();
 			_items[(i * 2) + 0] = itemId;
-			long cnt = readD();
+			long cnt = readInt();
 			if ((cnt > Integer.MAX_VALUE) || (cnt < 0))
 			{
 				_count = 0;
@@ -146,11 +146,11 @@ public final class RequestBuyItem extends L2GameClientPacket
 			return;
 		}
 		
-		L2TradeList list = null;
+		MerchantShop list = null;
 		
 		if (merchant != null)
 		{
-			List<L2TradeList> lists = TradeController.getInstance().getBuyListByNpcId(merchant.getNpcId());
+			List<MerchantShop> lists = TradeController.getInstance().getBuyListByNpcId(merchant.getNpcId());
 			
 			if (!player.isGM())
 			{
@@ -159,9 +159,9 @@ public final class RequestBuyItem extends L2GameClientPacket
 					Util.handleIllegalPlayerAction(player, "Warning!! Character " + player.getName() + " of account " + player.getAccountName() + " sent a false BuyList list_id.", Config.DEFAULT_PUNISH);
 					return;
 				}
-				for (L2TradeList tradeList : lists)
+				for (MerchantShop tradeList : lists)
 				{
-					if (tradeList.getListId() == _listId)
+					if (tradeList.getId() == _listId)
 					{
 						list = tradeList;
 					}
@@ -182,11 +182,11 @@ public final class RequestBuyItem extends L2GameClientPacket
 			return;
 		}
 		
-		_listId = list.getListId();
+		_listId = list.getId();
 		
 		if (_listId > 1000000) // lease
 		{
-			if ((merchant != null) && (merchant.getTemplate().npcId != (_listId - 1000000)))
+			if ((merchant != null) && (merchant.getTemplate().getId() != (_listId - 1000000)))
 			{
 				sendPacket(new ActionFailed());
 				return;
@@ -220,7 +220,7 @@ public final class RequestBuyItem extends L2GameClientPacket
 				return;
 			}
 			
-			L2Item template = ItemTable.getInstance().getTemplate(itemId);
+			ItemTemplate template = ItemTable.getInstance().getTemplate(itemId);
 			
 			if (template == null)
 			{
@@ -310,7 +310,7 @@ public final class RequestBuyItem extends L2GameClientPacket
 		// Proceed the purchase
 		for (int i = 0; i < _count; i++)
 		{
-			int itemId = _items[(i * 2) + 0];
+			int itemId = _items[(i * 2)];
 			int count = _items[(i * 2) + 1];
 			if (count < 0)
 			{
@@ -322,14 +322,14 @@ public final class RequestBuyItem extends L2GameClientPacket
 				Util.handleIllegalPlayerAction(player, "Warning!! Character " + player.getName() + " of account " + player.getAccountName() + " sent a false BuyList list_id.", Config.DEFAULT_PUNISH);
 				return;
 			}
-			if (list.countDecrease(itemId))
+			if (list.isLimited(itemId))
 			{
 				list.decreaseCount(itemId, count);
 			}
 			// Add item to Inventory and adjust update packet
 			player.getInventory().addItem("Buy", itemId, count, player, merchant);
 			/*
-			 * TODO: Disabled until Leaseholders are rewritten ;-) // Update Leaseholder list if (_listId >= 1000000) { L2ItemInstance li = merchant.findLeaseItem(item.getItemId(), 0); if (li == null) continue; if (li.getCount() < item.getCount()) item.setCount(li.getCount());
+			 * TODO: Disabled until Leaseholders are rewritten ;-) // Update Leaseholder list if (_listId >= 1000000) { L2ItemInstance li = merchant.findLeaseItem(item.getId(), 0); if (li == null) continue; if (li.getCount() < item.getCount()) item.setCount(li.getCount());
 			 * li.setCount(li.getCount() - item.getCount()); li.updateDatabase(); price = item.getCount() + li.getPriceToSell(); L2ItemInstance la = merchant.getLeaseAdena(); la.setCount(la.getCount() + price); la.updateDatabase(); player.getInventory().addItem(item); item.updateDatabase(); }
 			 */
 		}

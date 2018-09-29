@@ -20,7 +20,7 @@ package com.l2jbr.gameserver.model.actor.status;
 import com.l2jbr.commons.Config;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.instancemanager.DuelManager;
 import com.l2jbr.gameserver.model.L2Attackable;
 import com.l2jbr.gameserver.model.L2Character;
@@ -193,12 +193,12 @@ public class CharStatus
 			value = getCurrentHp() - value; // Get diff of Hp vs value
 			if (value <= 0)
 			{
-				// is the dieing one a duelist? if so change his duel state to dead
+				// is the dieing one a DUELIST? if so change his duel state to dead
 				if ((getActiveChar() instanceof L2PcInstance) && ((L2PcInstance) getActiveChar()).isInDuel())
 				{
 					getActiveChar().disableAllSkills();
 					stopHpMpRegeneration();
-					attacker.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+					attacker.getAI().setIntention(Intention.AI_INTENTION_ACTIVE);
 					attacker.sendPacket(new ActionFailed());
 					
 					// let the DuelManager know of his defeat

@@ -22,6 +22,7 @@ import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2Skill;
 import com.l2jbr.gameserver.model.base.Race;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
 import com.l2jbr.gameserver.skills.conditions.*;
 import com.l2jbr.gameserver.skills.conditions.ConditionGameTime.CheckGameTime;
 import com.l2jbr.gameserver.skills.conditions.ConditionPlayerState.CheckPlayerState;
@@ -134,8 +135,8 @@ abstract class DocumentBase {
         int ord = Integer.decode(getValue(order, template));
         Condition applayCond = parseCondition(n.getFirstChild(), template);
         FuncTemplate ft = new FuncTemplate(attachCond, applayCond, name, stat, ord, lambda);
-        if (template instanceof L2Item) {
-            ((L2Item) template).attach(ft);
+        if (template instanceof ItemTemplate) {
+
         } else if (template instanceof L2Skill) {
             ((L2Skill) template).attach(ft);
         } else if (template instanceof EffectTemplate) {
@@ -198,8 +199,8 @@ abstract class DocumentBase {
         }
         EffectTemplate lt = new EffectTemplate(attachCond, applayCond, name, lambda, count, time, abnormal, stackType, stackOrder);
         parseTemplate(n, lt);
-        if (template instanceof L2Item) {
-            ((L2Item) template).attach(lt);
+        if (template instanceof ItemTemplate) {
+            ((ItemTemplate) template).attach(lt);
         } else if ((template instanceof L2Skill) && !self) {
             ((L2Skill) template).attach(lt);
         } else if ((template instanceof L2Skill) && self) {
@@ -218,24 +219,14 @@ abstract class DocumentBase {
         }
         L2Skill skill = SkillTable.getInstance().getInfo(id, lvl);
         if (attrs.getNamedItem("chance") != null) {
-            if ((template instanceof L2Weapon) || (template instanceof L2Item)) {
+            if ( (template instanceof ItemTemplate)) {
                 skill.attach(new ConditionGameChance(Integer.decode(getValue(attrs.getNamedItem("chance").getNodeValue(), template))), true);
             } else {
                 skill.attach(new ConditionGameChance(Integer.decode(getValue(attrs.getNamedItem("chance").getNodeValue(), template))), false);
             }
         }
-        if (template instanceof L2Weapon) {
-            if ((attrs.getNamedItem("onUse") != null) || ((attrs.getNamedItem("onCrit") == null) && (attrs.getNamedItem("onCast") == null))) {
-                ((L2Weapon) template).attach(skill); // Attach as skill triggered on use
-            }
-            if (attrs.getNamedItem("onCrit") != null) {
-                ((L2Weapon) template).attachOnCrit(skill); // Attach as skill triggered on critical hit
-            }
-            if (attrs.getNamedItem("onCast") != null) {
-                ((L2Weapon) template).attachOnCast(skill); // Attach as skill triggered on cast
-            }
-        } else if (template instanceof L2Item) {
-            ((L2Item) template).attach(skill); // Attach as skill triggered on use
+        if (template instanceof ItemTemplate) {
+            ((ItemTemplate) template).attach(skill); // Attach as skill triggered on use
         }
     }
 
@@ -416,13 +407,13 @@ abstract class DocumentBase {
                 StringTokenizer st = new StringTokenizer(a.getNodeValue(), ",");
                 while (st.hasMoreTokens()) {
                     String item = st.nextToken().trim();
-                    for (L2WeaponType wt : L2WeaponType.values()) {
-                        if (wt.toString().equals(item)) {
+                    for (ItemType wt : ItemType.weapons()) {
+                        if (wt.toString().equalsIgnoreCase(item)) {
                             mask |= wt.mask();
                             break;
                         }
                     }
-                    for (L2ArmorType at : L2ArmorType.values()) {
+                    for (ItemType at : ItemType.armors()) {
                         if (at.toString().equals(item)) {
                             mask |= at.mask();
                             break;
@@ -454,13 +445,13 @@ abstract class DocumentBase {
                 StringTokenizer st = new StringTokenizer(a.getNodeValue(), ",");
                 while (st.hasMoreTokens()) {
                     String item = st.nextToken().trim();
-                    for (L2WeaponType wt : L2WeaponType.values()) {
-                        if (wt.toString().equals(item)) {
+                    for (ItemType wt : ItemType.weapons()) {
+                        if (wt.toString().equalsIgnoreCase(item)) {
                             mask |= wt.mask();
                             break;
                         }
                     }
-                    for (L2ArmorType at : L2ArmorType.values()) {
+                    for (ItemType at : ItemType.armors()) {
                         if (at.toString().equals(item)) {
                             mask |= at.mask();
                             break;

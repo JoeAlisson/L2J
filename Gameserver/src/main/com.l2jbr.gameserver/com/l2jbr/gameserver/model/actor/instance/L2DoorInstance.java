@@ -20,34 +20,28 @@ package com.l2jbr.gameserver.model.actor.instance;
 
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
-import com.l2jbr.gameserver.ai.L2CharacterAI;
+import com.l2jbr.gameserver.ai.AI;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.ai.L2DoorAI;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.knownlist.DoorKnownList;
 import com.l2jbr.gameserver.model.actor.stat.DoorStat;
 import com.l2jbr.gameserver.model.actor.status.DoorStatus;
+import com.l2jbr.gameserver.model.entity.database.CharTemplate;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 import com.l2jbr.gameserver.model.entity.Castle;
 import com.l2jbr.gameserver.model.entity.ClanHall;
 import com.l2jbr.gameserver.network.L2GameClient;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2CharTemplate;
-import com.l2jbr.gameserver.templates.L2Weapon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ScheduledFuture;
 
 
-/**
- * This class ...
- *
- * @version $Revision: 1.3.2.2.2.5 $ $Date: 2005/03/27 15:29:32 $
- */
 public class L2DoorInstance extends L2Character {
     protected static final Logger log = LoggerFactory.getLogger(L2DoorInstance.class.getName());
 
@@ -73,7 +67,6 @@ public class L2DoorInstance extends L2Character {
     private ClanHall _clanHall;
 
     protected int _autoActionDelay = -1;
-    private ScheduledFuture<?> _autoActionTask;
 
     /**
      * This class may be created only by L2Character and only for AI
@@ -96,7 +89,7 @@ public class L2DoorInstance extends L2Character {
         }
 
         @Override
-        public void stopMove(L2CharPosition pos) {
+        public void stopMove(L2Position pos) {
         }
 
         @Override
@@ -109,7 +102,7 @@ public class L2DoorInstance extends L2Character {
     }
 
     @Override
-    public L2CharacterAI getAI() {
+    public AI getAI() {
         if (_ai == null) {
             synchronized (this) {
                 if (_ai == null) {
@@ -169,7 +162,7 @@ public class L2DoorInstance extends L2Character {
      * @param name
      * @param unlockable
      */
-    public L2DoorInstance(int objectId, L2CharTemplate template, int doorId, String name, boolean unlockable) {
+    public L2DoorInstance(int objectId, CharTemplate template, int doorId, String name, boolean unlockable) {
         super(objectId, template);
         getKnownList(); // init knownlist
         getStat(); // init stats
@@ -247,12 +240,7 @@ public class L2DoorInstance extends L2Character {
         if (actionDelay > -1) {
             AutoOpenClose ao = new AutoOpenClose();
             ThreadPoolManager.getInstance().scheduleGeneralAtFixedRate(ao, actionDelay, actionDelay);
-        } else {
-            if (_autoActionTask != null) {
-                _autoActionTask.cancel(false);
-            }
         }
-
         _autoActionDelay = actionDelay;
     }
 
@@ -343,7 +331,7 @@ public class L2DoorInstance extends L2Character {
     }
 
     @Override
-    public L2Weapon getActiveWeaponItem() {
+    public Weapon getActiveWeaponItem() {
         return null;
     }
 
@@ -353,7 +341,7 @@ public class L2DoorInstance extends L2Character {
     }
 
     @Override
-    public L2Weapon getSecondaryWeaponItem() {
+    public Weapon getSecondaryWeaponItem() {
         return null;
     }
 
@@ -386,11 +374,11 @@ public class L2DoorInstance extends L2Character {
             if (isAutoAttackable(player)) {
                 if (Math.abs(player.getZ() - getZ()) < 400) // this max heigth difference might need some tweaking
                 {
-                    player.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, this);
+                    player.getAI().setIntention(Intention.AI_INTENTION_ATTACK, this);
                 }
             } else if ((player.getClan() != null) && (getClanHall() != null) && (player.getClanId() == getClanHall().getOwnerId())) {
                 if (!isInsideRadius(player, L2NpcInstance.INTERACTION_DISTANCE, false, false)) {
-                    player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+                    player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
                 } else {
                     // need find serverpacket which ask open/close gate. now auto
                     // if (getOpen() == 1) player.sendPacket(new SystemMessage(1140));

@@ -46,7 +46,7 @@ public class NpcInfo extends L2GameServerPacket
 	private int _flyRunSpd;
 	private int _flyWalkSpd;
 	private final int _rhand, _lhand;
-	private final int _collisionHeight, _collisionRadius;
+	private final float _collisionHeight, _collisionRadius;
 	private String _name = "";
 	private String _title = "";
 	
@@ -57,25 +57,25 @@ public class NpcInfo extends L2GameServerPacket
 	public NpcInfo(L2NpcInstance cha, L2Character attacker)
 	{
 		_activeChar = cha;
-		_idTemplate = cha.getTemplate().idTemplate;
+		_idTemplate = cha.getTemplate().getTemplateId();
 		_isAttackable = cha.isAutoAttackable(attacker);
 		_rhand = cha.getRightHandItem();
 		_lhand = cha.getLeftHandItem();
 		_isSummoned = false;
 		_collisionHeight = cha.getCollisionHeight();
 		_collisionRadius = cha.getCollisionRadius();
-		if (cha.getTemplate().serverSideName)
+		if (cha.getTemplate().isServerSideName())
 		{
-			_name = cha.getTemplate().name;
+			_name = cha.getTemplate().getName();
 		}
 		
 		if (Config.L2JMOD_CHAMPION_ENABLE && cha.isChampion())
 		{
 			_title = ("Champion");
 		}
-		else if (cha.getTemplate().serverSideTitle)
+		else if (cha.getTemplate().isServerSideTitle())
 		{
-			_title = cha.getTemplate().title;
+			_title = cha.getTemplate().getTitle();
 		}
 		else
 		{
@@ -108,14 +108,14 @@ public class NpcInfo extends L2GameServerPacket
 	public NpcInfo(L2Summon cha, L2Character attacker)
 	{
 		_activeChar = cha;
-		_idTemplate = cha.getTemplate().idTemplate;
+		_idTemplate = cha.getTemplate().getTemplateId();
 		_isAttackable = cha.isAutoAttackable(attacker); // (cha.getKarma() > 0);
 		_rhand = 0;
 		_lhand = 0;
 		_isSummoned = cha.isShowSummonAnimation();
-		_collisionHeight = _activeChar.getTemplate().collisionHeight;
-		_collisionRadius = _activeChar.getTemplate().collisionRadius;
-		if (cha.getTemplate().serverSideName || (cha instanceof L2PetInstance))
+		_collisionHeight = _activeChar.getTemplate().getCollisionHeight();
+		_collisionRadius = _activeChar.getTemplate().getCollisionRadius();
+		if (cha.getTemplate().isServerSideName() || (cha instanceof L2PetInstance))
 		{
 			_name = _activeChar.getName();
 			_title = cha.getTitle();
@@ -143,56 +143,56 @@ public class NpcInfo extends L2GameServerPacket
 				return;
 			}
 		}
-		writeC(0x16);
-		writeD(_activeChar.getObjectId());
-		writeD(_idTemplate + 1000000); // npctype id
-		writeD(_isAttackable ? 1 : 0);
-		writeD(_x);
-		writeD(_y);
-		writeD(_z);
-		writeD(_heading);
-		writeD(0x00);
-		writeD(_mAtkSpd);
-		writeD(_pAtkSpd);
-		writeD(_runSpd);
-		writeD(_walkSpd);
-		writeD(_swimRunSpd/* 0x32 */); // swimspeed
-		writeD(_swimWalkSpd/* 0x32 */); // swimspeed
-		writeD(_flRunSpd);
-		writeD(_flWalkSpd);
-		writeD(_flyRunSpd);
-		writeD(_flyWalkSpd);
-		writeF(1.1/* _activeChar.getProperMultiplier() */);
-		// writeF(1/*_activeChar.getAttackSpeedMultiplier()*/);
-		writeF(_pAtkSpd / 277.478340719);
-		writeF(_collisionRadius);
-		writeF(_collisionHeight);
-		writeD(_rhand); // right hand weapon
-		writeD(0);
-		writeD(_lhand); // left hand weapon
-		writeC(1); // name above char 1=true ... ??
-		writeC(_activeChar.isRunning() ? 1 : 0);
-		writeC(_activeChar.isInCombat() ? 1 : 0);
-		writeC(_activeChar.isAlikeDead() ? 1 : 0);
-		writeC(_isSummoned ? 2 : 0); // invisible ?? 0=false 1=true 2=summoned (only works if model has a summon animation)
-		writeS(_name);
-		writeS(_title);
-		writeD(0);
-		writeD(0);
-		writeD(0000); // hmm karma ??
+		writeByte(0x16);
+		writeInt(_activeChar.getObjectId());
+		writeInt(_idTemplate + 1000000); // npctype id
+		writeInt(_isAttackable ? 1 : 0);
+		writeInt(_x);
+		writeInt(_y);
+		writeInt(_z);
+		writeInt(_heading);
+		writeInt(0x00);
+		writeInt(_mAtkSpd);
+		writeInt(_pAtkSpd);
+		writeInt(_runSpd);
+		writeInt(_walkSpd);
+		writeInt(_swimRunSpd/* 0x32 */); // swimspeed
+		writeInt(_swimWalkSpd/* 0x32 */); // swimspeed
+		writeInt(_flRunSpd);
+		writeInt(_flWalkSpd);
+		writeInt(_flyRunSpd);
+		writeInt(_flyWalkSpd);
+		writeDouble(1.1/* _activeChar.getProperMultiplier() */);
+		// writeDouble(1/*_activeChar.getAttackSpeedMultiplier()*/);
+		writeDouble(_pAtkSpd / 277.478340719);
+		writeDouble(_collisionRadius);
+		writeDouble(_collisionHeight);
+		writeInt(_rhand); // right hand weapon
+		writeInt(0);
+		writeInt(_lhand); // left hand weapon
+		writeByte(1); // name above char 1=true ... ??
+		writeByte(_activeChar.isRunning() ? 1 : 0);
+		writeByte(_activeChar.isInCombat() ? 1 : 0);
+		writeByte(_activeChar.isAlikeDead() ? 1 : 0);
+		writeByte(_isSummoned ? 2 : 0); // invisible ?? 0=false 1=true 2=summoned (only works if model has a summon animation)
+		writeString(_name);
+		writeString(_title);
+		writeInt(0);
+		writeInt(0);
+		writeInt(0000); // hmm karma ??
 		
-		writeD(_activeChar.getAbnormalEffect()); // C2
-		writeD(0000); // C2
-		writeD(0000); // C2
-		writeD(0000); // C2
-		writeD(0000); // C2
-		writeC(0000); // C2
+		writeInt(_activeChar.getAbnormalEffect()); // C2
+		writeInt(0000); // C2
+		writeInt(0000); // C2
+		writeInt(0000); // C2
+		writeInt(0000); // C2
+		writeByte(0000); // C2
 		
-		writeC(0x00); // C3 team circle 1-blue, 2-red
-		writeF(_collisionRadius);
-		writeF(_collisionHeight);
-		writeD(0x00); // C4
-		writeD(0x00); // C6
+		writeByte(0x00); // C3 team circle 1-blue, 2-red
+		writeDouble(_collisionRadius);
+		writeDouble(_collisionHeight);
+		writeInt(0x00); // C4
+		writeInt(0x00); // C6
 	}
 	
 	@Override

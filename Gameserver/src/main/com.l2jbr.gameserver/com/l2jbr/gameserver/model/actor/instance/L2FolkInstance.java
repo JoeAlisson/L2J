@@ -20,19 +20,22 @@ package com.l2jbr.gameserver.model.actor.instance;
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.datatables.SkillTreeTable;
-import com.l2jbr.gameserver.model.L2EnchantSkillLearn;
 import com.l2jbr.gameserver.model.L2Skill;
-import com.l2jbr.gameserver.model.L2SkillLearn;
-import com.l2jbr.gameserver.model.base.ClassId;
+import com.l2jbr.gameserver.model.base.PlayerClass;
+import com.l2jbr.gameserver.model.entity.database.EnchantSkillInfo;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.SkillInfo;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
+
+import java.util.List;
+import java.util.Set;
 
 
 public class L2FolkInstance extends L2NpcInstance {
-    private final ClassId[] _classesToTeach;
+    private final Set<PlayerClass> _classesToTeach;
 
-    public L2FolkInstance(int objectId, L2NpcTemplate template) {
+    public L2FolkInstance(int objectId, NpcTemplate template) {
         super(objectId, template);
         _classesToTeach = template.getTeachInfo();
     }
@@ -47,20 +50,20 @@ public class L2FolkInstance extends L2NpcInstance {
      * this displays SkillList to the player.
      *
      * @param player
-     * @param classId
+     * @param playerClass
      */
-    public void showSkillList(L2PcInstance player, ClassId classId) {
+    public void showSkillList(L2PcInstance player, PlayerClass playerClass) {
         if (Config.DEBUG) {
             _log.debug("SkillList activated on: " + getObjectId());
         }
 
-        int npcId = getTemplate().npcId;
+        int npcId = getTemplate().getId();
 
         if (_classesToTeach == null) {
             NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
             StringBuilder sb = new StringBuilder();
             sb.append("<html><body>");
-            sb.append("I cannot teach you. My class list is empty.<br> Ask admin to fix it. Need add my npcid and classes to skill_learn.sql.<br>NpcId:" + npcId + ", Your classId:" + player.getClassId().getId() + "<br>");
+            sb.append("I cannot teach you. My class list is empty.<br> Ask admin to fix it. Need add my npcid and classes to skill_learn.sql.<br>NpcId:" + npcId + ", Your playerClass:" + player.getPlayerClass().getId() + "<br>");
             sb.append("</body></html>");
             html.setHtml(sb.toString());
             player.sendPacket(html);
@@ -68,7 +71,7 @@ public class L2FolkInstance extends L2NpcInstance {
             return;
         }
 
-        if (!getTemplate().canTeach(classId)) {
+        if (!getTemplate().canTeach(playerClass)) {
             NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
             StringBuilder sb = new StringBuilder();
             sb.append("<html><body>");
@@ -80,14 +83,14 @@ public class L2FolkInstance extends L2NpcInstance {
             return;
         }
 
-        L2SkillLearn[] skills = SkillTreeTable.getInstance().getAvailableSkills(player, classId);
+        List<SkillInfo> skills = SkillTreeTable.getInstance().getAvailableSkills(player, playerClass);
         AquireSkillList asl = new AquireSkillList(AquireSkillList.skillType.Usual);
         int counts = 0;
 
-        for (L2SkillLearn s : skills) {
+        for (SkillInfo s : skills) {
             L2Skill sk = SkillTable.getInstance().getInfo(s.getId(), s.getLevel());
 
-            if ((sk == null) || !sk.getCanLearn(player.getClassId()) || !sk.canTeachBy(npcId)) {
+            if ((sk == null) || !sk.getCanLearn(player.getPlayerClass()) || !sk.canTeachBy(npcId)) {
                 continue;
             }
 
@@ -98,7 +101,7 @@ public class L2FolkInstance extends L2NpcInstance {
         }
 
         if (counts == 0) {
-            int minlevel = SkillTreeTable.getInstance().getMinLevelForNewSkill(player, classId);
+            int minlevel = SkillTreeTable.getInstance().getMinLevelForNewSkill(player, playerClass);
 
             if (minlevel > 0) {
                 SystemMessage sm = new SystemMessage(SystemMessageId.DO_NOT_HAVE_FURTHER_SKILLS_TO_LEARN);
@@ -119,19 +122,19 @@ public class L2FolkInstance extends L2NpcInstance {
      * this displays EnchantSkillList to the player.
      *
      * @param player
-     * @param classId
+     * @param playerClass
      */
-    public void showEnchantSkillList(L2PcInstance player, ClassId classId) {
+    public void showEnchantSkillList(L2PcInstance player, PlayerClass playerClass) {
         if (Config.DEBUG) {
             _log.debug("EnchantSkillList activated on: " + getObjectId());
         }
-        int npcId = getTemplate().npcId;
+        int npcId = getTemplate().getId();
 
         if (_classesToTeach == null) {
             NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
             StringBuilder sb = new StringBuilder();
             sb.append("<html><body>");
-            sb.append("I cannot teach you. My class list is empty.<br> Ask admin to fix it. Need add my npcid and classes to skill_learn.sql.<br>NpcId:" + npcId + ", Your classId:" + player.getClassId().getId() + "<br>");
+            sb.append("I cannot teach you. My class list is empty.<br> Ask admin to fix it. Need add my npcid and classes to skill_learn.sql.<br>NpcId:" + npcId + ", Your playerClass:" + player.getPlayerClass().getId() + "<br>");
             sb.append("</body></html>");
             html.setHtml(sb.toString());
             player.sendPacket(html);
@@ -139,7 +142,7 @@ public class L2FolkInstance extends L2NpcInstance {
             return;
         }
 
-        if (!getTemplate().canTeach(classId)) {
+        if (!getTemplate().canTeach(playerClass)) {
             NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
             StringBuilder sb = new StringBuilder();
             sb.append("<html><body>");
@@ -150,7 +153,7 @@ public class L2FolkInstance extends L2NpcInstance {
 
             return;
         }
-        if (player.getClassId().getId() < 88) {
+        if (player.getPlayerClass().getId() < 88) {
             NpcHtmlMessage html = new NpcHtmlMessage(getObjectId());
             StringBuilder sb = new StringBuilder();
             sb.append("<html><body>");
@@ -162,17 +165,17 @@ public class L2FolkInstance extends L2NpcInstance {
             return;
         }
 
-        L2EnchantSkillLearn[] skills = SkillTreeTable.getInstance().getAvailableEnchantSkills(player);
+        List<EnchantSkillInfo> skills = SkillTreeTable.getInstance().getAvailableEnchantSkills(player);
         ExEnchantSkillList esl = new ExEnchantSkillList();
         int counts = 0;
 
-        for (L2EnchantSkillLearn s : skills) {
+        for (EnchantSkillInfo s : skills) {
             L2Skill sk = SkillTable.getInstance().getInfo(s.getId(), s.getLevel());
             if (sk == null) {
                 continue;
             }
             counts++;
-            esl.addSkill(s.getId(), s.getLevel(), s.getSpCost(), s.getExp());
+            esl.addSkill(s.getId(), s.getLevel(), s.getSp(), s.getExp());
         }
         if (counts == 0) {
             player.sendPacket(new SystemMessage(SystemMessageId.THERE_IS_NO_SKILL_THAT_ENABLES_ENCHANT));
@@ -205,14 +208,14 @@ public class L2FolkInstance extends L2NpcInstance {
                 String id = command.substring(9).trim();
 
                 if (id.length() != 0) {
-                    player.setSkillLearningClassId(ClassId.values()[Integer.parseInt(id)]);
-                    showSkillList(player, ClassId.values()[Integer.parseInt(id)]);
+                    player.setSkillLearningClassId(PlayerClass.values()[Integer.parseInt(id)]);
+                    showSkillList(player, PlayerClass.values()[Integer.parseInt(id)]);
                 } else {
                     boolean own_class = false;
 
                     if (_classesToTeach != null) {
-                        for (ClassId cid : _classesToTeach) {
-                            if (cid.equalsOrChildOf(player.getClassId())) {
+                        for (PlayerClass cid : _classesToTeach) {
+                            if (cid.equalsOrChildOf(player.getPlayerClass())) {
                                 own_class = true;
                                 break;
                             }
@@ -222,22 +225,22 @@ public class L2FolkInstance extends L2NpcInstance {
                     String text = "<html><body><center>Skill learning:</center><br>";
 
                     if (!own_class) {
-                        String mages = player.getClassId().isMage() ? "fighters" : "mages";
+                        String mages = player.getPlayerClass().isMage() ? "fighters" : "mages";
                         text += "Skills of your class are the easiest to learn.<br>" + "Skills of another class are harder.<br>" + "Skills for another race are even more hard to learn.<br>" + "You can also learn skills of " + mages + ", and they are" + " the hardest to learn!<br>" + "<br>";
                     }
 
                     // make a list of classes
                     if (_classesToTeach != null) {
                         int count = 0;
-                        ClassId classCheck = player.getClassId();
+                        PlayerClass classCheck = player.getPlayerClass();
 
                         while ((count == 0) && (classCheck != null)) {
-                            for (ClassId cid : _classesToTeach) {
+                            for (PlayerClass cid : _classesToTeach) {
                                 if (cid.level() != classCheck.level()) {
                                     continue;
                                 }
 
-                                if (SkillTreeTable.getInstance().getAvailableSkills(player, cid).length == 0) {
+                                if (SkillTreeTable.getInstance().getAvailableSkills(player, cid).isEmpty()) {
                                     continue;
                                 }
 
@@ -257,11 +260,11 @@ public class L2FolkInstance extends L2NpcInstance {
                     player.sendPacket(new ActionFailed());
                 }
             } else {
-                player.setSkillLearningClassId(player.getClassId());
-                showSkillList(player, player.getClassId());
+                player.setSkillLearningClassId(player.getPlayerClass());
+                showSkillList(player, player.getPlayerClass());
             }
         } else if (command.startsWith("EnchantSkillList")) {
-            showEnchantSkillList(player, player.getClassId());
+            showEnchantSkillList(player, player.getPlayerClass());
         } else {
             // this class dont know any other commands, let forward
             // the command to the parent class

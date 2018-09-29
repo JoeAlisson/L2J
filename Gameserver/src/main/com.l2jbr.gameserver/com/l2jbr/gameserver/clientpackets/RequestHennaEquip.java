@@ -19,13 +19,12 @@
 package com.l2jbr.gameserver.clientpackets;
 
 import com.l2jbr.gameserver.datatables.HennaTable;
-import com.l2jbr.gameserver.model.L2HennaInstance;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.Henna;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2Henna;
 
 
 /**
@@ -45,7 +44,7 @@ public final class RequestHennaEquip extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_symbolId = readD();
+		_symbolId = readInt();
 	}
 	
 	@Override
@@ -58,28 +57,26 @@ public final class RequestHennaEquip extends L2GameClientPacket
 			return;
 		}
 		
-		L2Henna template = HennaTable.getInstance().getTemplate(_symbolId);
+		Henna template = HennaTable.getInstance().getTemplate(_symbolId);
 		
 		if (template == null)
 		{
 			return;
 		}
-		
-		L2HennaInstance temp = new L2HennaInstance(template);
 		int _count = 0;
 		
 		try
 		{
-			_count = activeChar.getInventory().getItemByItemId(temp.getItemIdDye()).getCount();
+			_count = activeChar.getInventory().getItemByItemId(template.getDyeId()).getCount();
 		}
 		catch (Exception e)
 		{
 		}
 		
-		if ((_count >= temp.getAmountDyeRequire()) && (activeChar.getAdena() >= temp.getPrice()) && activeChar.addHenna(temp))
+		if ((_count >= template.getDyeAmount()) && (activeChar.getAdena() >= template.getPrice()) && activeChar.addHenna(template))
 		{
 			SystemMessage sm = new SystemMessage(SystemMessageId.S1_DISAPPEARED);
-			sm.addNumber(temp.getItemIdDye());
+			sm.addNumber(template.getDyeId());
 			activeChar.sendPacket(sm);
 			sm = null;
 			activeChar.sendPacket(new SystemMessage(SystemMessageId.SYMBOL_ADDED));
@@ -87,8 +84,8 @@ public final class RequestHennaEquip extends L2GameClientPacket
 			// HennaInfo hi = new HennaInfo(temp,activeChar);
 			// activeChar.sendPacket(hi);
 			
-			activeChar.getInventory().reduceAdena("Henna", temp.getPrice(), activeChar, activeChar.getLastFolkNPC());
-			L2ItemInstance dyeToUpdate = activeChar.getInventory().destroyItemByItemId("Henna", temp.getItemIdDye(), temp.getAmountDyeRequire(), activeChar, activeChar.getLastFolkNPC());
+			activeChar.getInventory().reduceAdena("Henna", template.getPrice(), activeChar, activeChar.getLastFolkNPC());
+			L2ItemInstance dyeToUpdate = activeChar.getInventory().destroyItemByItemId("Henna", template.getDyeId(), template.getDyeAmount(), activeChar, activeChar.getLastFolkNPC());
 			
 			// update inventory
 			InventoryUpdate iu = new InventoryUpdate();

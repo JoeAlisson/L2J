@@ -30,7 +30,7 @@ import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.ItemList;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2EtcItemType;
+import com.l2jbr.gameserver.templates.ItemType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,10 +50,10 @@ public final class SendWareHouseDepositList extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_count = readD();
+		_count = readInt();
 		
 		// check packet list size
-		if ((_count < 0) || ((_count * 8) > _buf.remaining()) || (_count > Config.MAX_ITEM_IN_PACKET))
+		if ((_count < 0) || ((_count * 8) > availableData()) || (_count > Config.MAX_ITEM_IN_PACKET))
 		{
 			_count = 0;
 		}
@@ -61,9 +61,9 @@ public final class SendWareHouseDepositList extends L2GameClientPacket
 		_items = new int[_count * 2];
 		for (int i = 0; i < _count; i++)
 		{
-			int objectId = readD();
+			int objectId = readInt();
 			_items[(i * 2) + 0] = objectId;
-			long cnt = readD();
+			long cnt = readInt();
 			if ((cnt > Integer.MAX_VALUE) || (cnt < 0))
 			{
 				_count = 0;
@@ -125,7 +125,7 @@ public final class SendWareHouseDepositList extends L2GameClientPacket
 				continue;
 			}
 			
-			if (((warehouse instanceof ClanWarehouse) && !item.isTradeable()) || (item.getItemType() == L2EtcItemType.QUEST))
+			if (((warehouse instanceof ClanWarehouse) && !item.isTradeable()) || (item.getItemType() == ItemType.QUEST))
 			{
 				return;
 			}

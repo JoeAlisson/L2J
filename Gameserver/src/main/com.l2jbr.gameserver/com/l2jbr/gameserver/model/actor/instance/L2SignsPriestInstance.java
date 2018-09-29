@@ -24,12 +24,12 @@ import com.l2jbr.gameserver.cache.HtmCache;
 import com.l2jbr.gameserver.datatables.ClanTable;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.L2ItemInstance;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.NpcHtmlMessage;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,7 @@ import java.util.StringTokenizer;
 public class L2SignsPriestInstance extends L2FolkInstance {
      private static Logger _log = LoggerFactory.getLogger(L2SignsPriestInstance.class.getName());
 
-    public L2SignsPriestInstance(int objectId, L2NpcTemplate template) {
+    public L2SignsPriestInstance(int objectId, NpcTemplate template) {
         super(objectId, template);
     }
 
@@ -129,10 +129,10 @@ public class L2SignsPriestInstance extends L2FolkInstance {
                         return;
                     }
 
-                    if (player.getClassId().level() == 0) {
+                    if (player.getPlayerClass().level() == 0) {
                         player.sendMessage("You must have already completed your first class transfer.");
                         break;
-                    } else if (player.getClassId().level() >= 2) {
+                    } else if (player.getPlayerClass().level() >= 2) {
                         if (Config.ALT_GAME_REQUIRE_CASTLE_DAWN) {
                             if (getPlayerAllyHasCastle(player)) {
                                 if (cabal == SevenSigns.CABAL_DUSK) {
@@ -216,13 +216,13 @@ public class L2SignsPriestInstance extends L2FolkInstance {
 
                     switch (stoneType) {
                         case 1:
-                            blueContribCount = (Config.ALT_MAXIMUM_PLAYER_CONTRIB - contribScore) / SevenSigns.BLUE_CONTRIB_POINTS;
+                            blueContribCount =  ((Config.ALT_MAXIMUM_PLAYER_CONTRIB - contribScore) / SevenSigns.BLUE_CONTRIB_POINTS);
                             if (blueContribCount > blueStoneCount) {
                                 blueContribCount = blueStoneCount;
                             }
                             break;
                         case 2:
-                            greenContribCount = (Config.ALT_MAXIMUM_PLAYER_CONTRIB - contribScore) / SevenSigns.GREEN_CONTRIB_POINTS;
+                            greenContribCount =  ((Config.ALT_MAXIMUM_PLAYER_CONTRIB - contribScore) / SevenSigns.GREEN_CONTRIB_POINTS);
                             if (greenContribCount > greenStoneCount) {
                                 greenContribCount = greenStoneCount;
                             }
@@ -515,7 +515,7 @@ public class L2SignsPriestInstance extends L2FolkInstance {
 
                 for (L2Clan clan : clanList) {
                     if (clan.getAllyId() == allyId) {
-                        if (clan.getHasCastle() > 0) {
+                        if (clan.getCastle() > 0) {
                             return true;
                         }
                     }
@@ -523,7 +523,7 @@ public class L2SignsPriestInstance extends L2FolkInstance {
             }
         }
 
-        return (playerClan.getHasCastle() > 0);
+        return (playerClan.getCastle() > 0);
     }
 
     private void showChatWindow(L2PcInstance player, int val, String suffix, boolean isDescription) {

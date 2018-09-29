@@ -514,20 +514,15 @@ gameservers.sql
 ) do call :dump %%i
 set dest=gs
 for %%i in (
-account_data.sql
 armor.sql
 armorsets.sql
 auction.sql
 auction_bid.sql
-auction_watch.sql
 augmentations.sql
 auto_chat.sql
 auto_chat_text.sql
-boxaccess.sql
-boxes.sql
 castle.sql
 castle_door.sql
-castle_doorupgrade.sql
 castle_siege_guards.sql
 char_templates.sql
 character_friends.sql
@@ -598,7 +593,6 @@ teleport.sql
 topic.sql
 walker_routes.sql
 weapon.sql
-zone.sql
 zone_vertices.sql
 castle_manor_procure.sql
 castle_manor_production.sql

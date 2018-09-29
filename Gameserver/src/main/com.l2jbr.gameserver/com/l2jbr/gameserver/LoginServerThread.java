@@ -45,18 +45,17 @@ import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.security.spec.RSAPublicKeySpec;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static java.util.Objects.isNull;
 
 
 public class LoginServerThread extends Thread {
     protected static final Logger _log = LoggerFactory.getLogger(LoginServerThread.class.getName());
 
-    /**
-     * The LoginServerThread singleton
-     */
     private static LoginServerThread _instance;
 
     private static final int REVISION = 0x0102;
@@ -92,13 +91,13 @@ public class LoginServerThread extends Thread {
     private final String _gameExternalHost;
     private final String _gameInternalHost;
 
-    public LoginServerThread() {
+    private LoginServerThread() {
         super("LoginServerThread");
         _port = Config.GAME_SERVER_LOGIN_PORT;
         _gamePort = Config.PORT_GAME;
         _hostname = Config.GAME_SERVER_LOGIN_HOST;
         _hexID = Config.HEX_ID;
-        if (_hexID == null) {
+        if (isNull(_hexID)) {
             _requestID = Config.REQUEST_ID;
             _hexID = generateHex(16);
         } else {
@@ -109,12 +108,12 @@ public class LoginServerThread extends Thread {
         _gameExternalHost = Config.EXTERNAL_HOSTNAME;
         _gameInternalHost = Config.INTERNAL_HOSTNAME;
         _waitingClients = new LinkedList<>();
-        _accountsInGameServer = new LinkedHashMap<>();
+        _accountsInGameServer = new ConcurrentHashMap<>();
         _maxPlayer = Config.MAXIMUM_ONLINE_USERS;
     }
 
     public static LoginServerThread getInstance() {
-        if (_instance == null) {
+        if (isNull(_instance)) {
             _instance = new LoginServerThread();
         }
         return _instance;
@@ -282,11 +281,11 @@ public class LoginServerThread extends Thread {
                                     wcToRemove.gameClient.setState(GameClientState.AUTHED);
                                     wcToRemove.gameClient.setSessionId(wcToRemove.session);
                                     CharSelectInfo cl = new CharSelectInfo(wcToRemove.account, wcToRemove.gameClient.getSessionId().playOkID1);
-                                    wcToRemove.gameClient.getConnection().sendPacket(cl);
+                                    wcToRemove.gameClient.sendPacket(cl);
                                     wcToRemove.gameClient.setCharSelection(cl.getCharInfo());
                                 } else {
                                     _log.warn("session key is not correct. closing connection");
-                                    wcToRemove.gameClient.getConnection().sendPacket(new AuthLoginFail(1));
+                                    wcToRemove.gameClient.sendPacket(new AuthLoginFail(1));
                                     wcToRemove.gameClient.closeNow();
                                 }
                                 _waitingClients.remove(wcToRemove);

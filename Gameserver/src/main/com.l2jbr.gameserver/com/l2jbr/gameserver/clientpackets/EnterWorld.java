@@ -20,7 +20,7 @@ package com.l2jbr.gameserver.clientpackets;
 
 import com.l2jbr.commons.Base64;
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.*;
 import com.l2jbr.gameserver.cache.HtmCache;
 import com.l2jbr.gameserver.communitybbs.Manager.RegionBBSManager;
@@ -29,6 +29,8 @@ import com.l2jbr.gameserver.handler.AdminCommandHandler;
 import com.l2jbr.gameserver.instancemanager.*;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.Wedding;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterFriendRepository;
 import com.l2jbr.gameserver.model.entity.*;
 import com.l2jbr.gameserver.model.quest.Quest;
 import com.l2jbr.gameserver.network.SystemMessageId;
@@ -38,9 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.util.Objects;
 
 
 /**
@@ -268,7 +268,7 @@ public class EnterWorld extends L2GameClientPacket
 			activeChar.checkWaterState();
 		}
 		
-		if ((Hero.getInstance().getHeroes() != null) && Hero.getInstance().getHeroes().containsKey(activeChar.getObjectId()))
+		if ((Heroes.getInstance().getHeroes() != null) && Heroes.getInstance().getHeroes().containsKey(activeChar.getObjectId()))
 		{
 			activeChar.setHero(true);
 		}
@@ -324,7 +324,7 @@ public class EnterWorld extends L2GameClientPacket
 			ClanHall clanHall = ClanHallManager.getInstance().getClanHallByOwner(activeChar.getClan());
 			if (clanHall != null)
 			{
-				if (!clanHall.getPaid())
+				if (!clanHall.isPaid())
 				{
 					activeChar.sendPacket(new SystemMessage(SystemMessageId.PAYMENT_FOR_YOUR_CLAN_HALL_HAS_NOT_BEEN_MADE_PLEASE_MAKE_PAYMENT_TO_YOUR_CLAN_WAREHOUSE_BY_S1_TOMORROW));
 				}
@@ -345,6 +345,7 @@ public class EnterWorld extends L2GameClientPacket
 		 */
 		
 		TvTEvent.onLogin(activeChar);
+
 	}
 	
 	/**
@@ -354,16 +355,16 @@ public class EnterWorld extends L2GameClientPacket
 	{
 		int _chaid = cha.getObjectId();
 		
-		for (Couple cl : CoupleManager.getInstance().getCouples())
+		for (Wedding cl : CoupleManager.getInstance().getCouples())
 		{
 			if ((cl.getPlayer1Id() == _chaid) || (cl.getPlayer2Id() == _chaid))
 			{
-				if (cl.getMaried())
+				if (cl.isMarried())
 				{
 					cha.setMarried(true);
 				}
 				
-				cha.setCoupleId(cl.getId());
+				cha.setCoupleId(Objects.requireNonNullElse(cl.getId(), 0));
 				
 				if (cl.getPlayer1Id() == _chaid)
 				{
@@ -396,38 +397,20 @@ public class EnterWorld extends L2GameClientPacket
 			partner = null;
 		}
 	}
-	
-	/**
-	 * @param cha
-	 */
-	private void notifyFriends(L2PcInstance cha)
-	{
-		try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-			 PreparedStatement statement = con.prepareStatement("SELECT friend_name FROM character_friends WHERE char_id=?"))
-		{
-			statement.setInt(1, cha.getObjectId());
-			try (ResultSet rset = statement.executeQuery())
-			{
-				SystemMessage sm = new SystemMessage(SystemMessageId.FRIEND_S1_HAS_LOGGED_IN);
-				sm.addString(cha.getName());
-				
-				while (rset.next())
-				{
-					String friendName = rset.getString("friend_name");
-					L2PcInstance friend = L2World.getInstance().getPlayer(friendName);
-					
-					if (friend != null) // friend logged in.
-					{
-						friend.sendPacket(new FriendList(friend));
-						friend.sendPacket(sm);
-					}
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			_log.warn("could not restore friend data:" + e);
-		}
+
+	private void notifyFriends(L2PcInstance cha) {
+        CharacterFriendRepository repository = DatabaseAccess.getRepository(CharacterFriendRepository.class);
+        SystemMessage sm = new SystemMessage(SystemMessageId.FRIEND_S1_HAS_LOGGED_IN);
+        sm.addString(cha.getName());
+        repository.findAllByCharacterId(cha.getObjectId()).forEach(characterFriends -> {
+            L2PcInstance friend = L2World.getInstance().getPlayer(characterFriends.getFriendName());
+
+            if (friend != null) // friend logged in.
+            {
+                friend.sendPacket(new FriendList(friend));
+                friend.sendPacket(sm);
+            }
+        });
 	}
 	
 	/**

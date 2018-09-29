@@ -18,7 +18,7 @@
  */
 package com.l2jbr.gameserver.serverpackets;
 
-import com.l2jbr.gameserver.templates.L2PcTemplate;
+import com.l2jbr.gameserver.model.entity.database.PlayerTemplate;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -32,38 +32,38 @@ import java.util.List;
 public class CharTemplates extends L2GameServerPacket {
     // dddddddddddddddddddd
     private static final String _S__23_CHARTEMPLATES = "[S] 23 CharTemplates";
-    private final List<L2PcTemplate> _chars = new LinkedList<>();
+    private final List<PlayerTemplate> _chars = new LinkedList<>();
 
-    public void addChar(L2PcTemplate template) {
+    public void addChar(PlayerTemplate template) {
         _chars.add(template);
     }
 
     @Override
     protected final void writeImpl() {
-        writeC(0x17);
-        writeD(_chars.size());
+        writeByte(0x17);
+        writeInt(_chars.size());
 
-        for (L2PcTemplate temp : _chars) {
-            writeD(temp.race.ordinal());
-            writeD(temp.classId.getId());
-            writeD(0x46);
-            writeD(temp.baseSTR);
-            writeD(0x0a);
-            writeD(0x46);
-            writeD(temp.baseDEX);
-            writeD(0x0a);
-            writeD(0x46);
-            writeD(temp.baseCON);
-            writeD(0x0a);
-            writeD(0x46);
-            writeD(temp.baseINT);
-            writeD(0x0a);
-            writeD(0x46);
-            writeD(temp.baseWIT);
-            writeD(0x0a);
-            writeD(0x46);
-            writeD(temp.baseMEN);
-            writeD(0x0a);
+        for (PlayerTemplate temp : _chars) {
+            writeInt(temp.getRace().ordinal());
+            writeInt(temp.getPlayerClass().getId());
+            writeInt(0x46);
+            writeInt(temp.getStrength());
+            writeInt(0x0a);
+            writeInt(0x46);
+            writeInt(temp.getDexterity());
+            writeInt(0x0a);
+            writeInt(0x46);
+            writeInt(temp.getConstitution());
+            writeInt(0x0a);
+            writeInt(0x46);
+            writeInt(temp.getIntellienge());
+            writeInt(0x0a);
+            writeInt(0x46);
+            writeInt(temp.getWitness());
+            writeInt(0x0a);
+            writeInt(0x46);
+            writeInt(temp.getMentality());
+            writeInt(0x0a);
         }
     }
 

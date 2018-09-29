@@ -37,6 +37,8 @@ import java.util.Properties;
  */
 public final class Config {
     protected static final Logger _log = LoggerFactory.getLogger(Config.class.getName());
+
+
     /**
      * Debug/release mode
      */
@@ -101,6 +103,8 @@ public final class Config {
      * Maximum number of connections to the database
      */
     public static int DATABASE_MAX_CONNECTIONS;
+
+    public static int DATABASE_MAX_IDLE_TIME;
 
     /**
      * Maximum number of players allowed to play simultaneously on server
@@ -1467,19 +1471,6 @@ public final class Config {
     public static int DUMP_INTERVAL_SECONDS = 60;
 
     /**
-     * Enumeration for type of ID Factory
-     */
-    public static enum IdFactoryType {
-        Compaction,
-        BitSet,
-        Stack
-    }
-
-    /**
-     * ID Factory type
-     */
-    public static IdFactoryType IDFACTORY_TYPE;
-    /**
      * Check for bad ID ?
      */
     public static boolean BAD_ID_CHECKING;
@@ -1908,6 +1899,7 @@ public final class Config {
                 DATABASE_LOGIN = serverSettings.getProperty("Login", "root");
                 DATABASE_PASSWORD = serverSettings.getProperty("Password", "");
                 DATABASE_MAX_CONNECTIONS = Integer.parseInt(serverSettings.getProperty("MaximumDbConnections", "10"));
+                DATABASE_MAX_IDLE_TIME = Integer.parseInt(serverSettings.getProperty("MaximumDbIdleTime", "0"));
 
                 DATAPACK_ROOT = new File(serverSettings.getProperty("DatapackRoot", ".")).getCanonicalFile();
 
@@ -2100,7 +2092,6 @@ public final class Config {
 
                 MAP_TYPE = ObjectMapType.valueOf(idSettings.getProperty("L2Map", "WorldObjectMap"));
                 SET_TYPE = ObjectSetType.valueOf(idSettings.getProperty("L2Set", "WorldObjectSet"));
-                IDFACTORY_TYPE = IdFactoryType.valueOf(idSettings.getProperty("IDFactory", "Compaction"));
                 BAD_ID_CHECKING = Boolean.valueOf(idSettings.getProperty("BadIdChecking", "True"));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -2735,7 +2726,8 @@ public final class Config {
                 DATABASE_LOGIN = serverSettings.getProperty("Login", "root");
                 DATABASE_PASSWORD = serverSettings.getProperty("Password", "");
                 DATABASE_MAX_CONNECTIONS = Integer.parseInt(serverSettings.getProperty("MaximumDbConnections", "10"));
-
+                DATABASE_MAX_IDLE_TIME = Integer.parseInt(serverSettings.getProperty("MaximumDbIdleTime", "0"));
+                
                 SHOW_LICENCE = Boolean.parseBoolean(serverSettings.getProperty("ShowLicence", "true"));
                 IP_UPDATE_TIME = Integer.parseInt(serverSettings.getProperty("IpUpdateTime", "15"));
                 FORCE_GGAUTH = Boolean.parseBoolean(serverSettings.getProperty("ForceGGAuth", "false"));

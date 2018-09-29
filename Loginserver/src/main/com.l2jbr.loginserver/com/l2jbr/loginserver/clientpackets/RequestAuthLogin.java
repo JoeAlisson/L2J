@@ -33,7 +33,6 @@ import com.l2jbr.loginserver.serverpackets.ServerList;
 import javax.crypto.Cipher;
 import java.security.GeneralSecurityException;
 
-
 /**
  * Format: x 0 (a leading null) x: the rsa encrypted block with the login an password
  */
@@ -69,9 +68,9 @@ public class RequestAuthLogin extends L2LoginClientPacket
 	@Override
 	public boolean readImpl()
 	{
-		if (_buf.remaining() >= 128)
+		if (availableData() >= 128)
 		{
-			readB(_raw);
+			readBytes(_raw);
 			return true;
 		}
 		return false;
@@ -117,7 +116,7 @@ public class RequestAuthLogin extends L2LoginClientPacket
 				}
 				else
 				{
-					getClient().sendPacket(new ServerList(getClient()));
+					getClient().sendPacket(new ServerList());
 				}
 				break;
 			case INVALID_PASSWORD:

@@ -22,12 +22,12 @@ import com.l2jbr.gameserver.handler.IItemHandler;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PlayableInstance;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ExAutoSoulShot;
 import com.l2jbr.gameserver.serverpackets.MagicSkillUser;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2Item;
-import com.l2jbr.gameserver.templates.L2Weapon;
+import com.l2jbr.gameserver.templates.CrystalType;
 import com.l2jbr.gameserver.util.Broadcast;
 
 
@@ -48,6 +48,7 @@ public class BlessedSpiritShot implements IItemHandler
 		3951,
 		3952
 	};
+	//TODO move skills to CrystalType
 	private static final int[] SKILL_IDS =
 	{
 		2061,
@@ -72,7 +73,7 @@ public class BlessedSpiritShot implements IItemHandler
 		
 		L2PcInstance activeChar = (L2PcInstance) playable;
 		L2ItemInstance weaponInst = activeChar.getActiveWeaponInstance();
-		L2Weapon weaponItem = activeChar.getActiveWeaponItem();
+		Weapon weaponItem = activeChar.getActiveWeaponItem();
 		int itemId = item.getItemId();
 		
 		if (activeChar.isInOlympiadMode())
@@ -85,7 +86,7 @@ public class BlessedSpiritShot implements IItemHandler
 		}
 		
 		// Check if Blessed Spiritshot can be used
-		if ((weaponInst == null) || (weaponItem.getSpiritShotCount() == 0))
+		if ((weaponInst == null) || (weaponItem.getSpiritshots() == 0))
 		{
 			if (!activeChar.getAutoSoulShot().containsKey(itemId))
 			{
@@ -101,8 +102,8 @@ public class BlessedSpiritShot implements IItemHandler
 		}
 		
 		// Check for correct grade
-		int weaponGrade = weaponItem.getCrystalType();
-		if (((weaponGrade == L2Item.CRYSTAL_NONE) && (itemId != 3947)) || ((weaponGrade == L2Item.CRYSTAL_D) && (itemId != 3948)) || ((weaponGrade == L2Item.CRYSTAL_C) && (itemId != 3949)) || ((weaponGrade == L2Item.CRYSTAL_B) && (itemId != 3950)) || ((weaponGrade == L2Item.CRYSTAL_A) && (itemId != 3951)) || ((weaponGrade == L2Item.CRYSTAL_S) && (itemId != 3952)))
+		CrystalType weaponGrade = weaponItem.getCrystalType();
+		if (((weaponGrade == CrystalType.NONE) && (itemId != 3947)) || ((weaponGrade == CrystalType.D) && (itemId != 3948)) || ((weaponGrade == CrystalType.C) && (itemId != 3949)) || ((weaponGrade == CrystalType.B) && (itemId != 3950)) || ((weaponGrade == CrystalType.A) && (itemId != 3951)) || ((weaponGrade == CrystalType.S) && (itemId != 3952)))
 		{
 			if (!activeChar.getAutoSoulShot().containsKey(itemId))
 			{
@@ -112,7 +113,7 @@ public class BlessedSpiritShot implements IItemHandler
 		}
 		
 		// Consume Blessed Spiritshot if player has enough of them
-		if (!activeChar.destroyItemWithoutTrace("Consume", item.getObjectId(), weaponItem.getSpiritShotCount(), null, false))
+		if (!activeChar.destroyItemWithoutTrace("Consume", item.getObjectId(), weaponItem.getSpiritshots(), null, false))
 		{
 			if (activeChar.getAutoSoulShot().containsKey(itemId))
 			{
@@ -135,7 +136,7 @@ public class BlessedSpiritShot implements IItemHandler
 		
 		// Send message to client
 		activeChar.sendPacket(new SystemMessage(SystemMessageId.ENABLED_SPIRITSHOT));
-		Broadcast.toSelfAndKnownPlayersInRadius(activeChar, new MagicSkillUser(activeChar, activeChar, SKILL_IDS[weaponGrade], 1, 0, 0), 360000/* 600 */);
+		Broadcast.toSelfAndKnownPlayersInRadius(activeChar, new MagicSkillUser(activeChar, activeChar, SKILL_IDS[weaponGrade.ordinal()], 1, 0, 0), 360000/* 600 */);
 	}
 	
 	@Override

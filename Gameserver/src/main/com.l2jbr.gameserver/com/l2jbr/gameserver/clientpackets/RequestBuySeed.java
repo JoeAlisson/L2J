@@ -22,18 +22,18 @@ import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.datatables.ItemTable;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.SeedProduction;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.actor.instance.L2ManorManagerInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.entity.Castle;
+import com.l2jbr.gameserver.model.entity.database.SeedProduction;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2Item;
 import com.l2jbr.gameserver.util.Util;
 
 
@@ -52,10 +52,10 @@ public class RequestBuySeed extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_manorId = readD();
-		_count = readD();
+		_manorId = readInt();
+		_count = readInt();
 		
-		if ((_count > 500) || ((_count * 8) < _buf.remaining())) // check values
+		if ((_count > 500) || ((_count * 8) < availableData())) // check values
 		{
 			_count = 0;
 			return;
@@ -65,9 +65,9 @@ public class RequestBuySeed extends L2GameClientPacket
 		
 		for (int i = 0; i < _count; i++)
 		{
-			int itemId = readD();
+			int itemId = readInt();
 			_items[(i * 2) + 0] = itemId;
-			long cnt = readD();
+			long cnt = readInt();
 			if ((cnt > Integer.MAX_VALUE) || (cnt < 1))
 			{
 				_count = 0;
@@ -119,7 +119,7 @@ public class RequestBuySeed extends L2GameClientPacket
 			
 			SeedProduction seed = castle.getSeed(seedId, CastleManorManager.PERIOD_CURRENT);
 			price = seed.getPrice();
-			residual = seed.getCanProduce();
+			residual = seed.getAmount();
 			
 			if (price <= 0)
 			{
@@ -133,7 +133,7 @@ public class RequestBuySeed extends L2GameClientPacket
 			
 			totalPrice += count * price;
 			
-			L2Item template = ItemTable.getInstance().getTemplate(seedId);
+			ItemTemplate template = ItemTable.getInstance().getTemplate(seedId);
 			totalWeight += count * template.getWeight();
 			if (!template.isStackable())
 			{
@@ -186,10 +186,10 @@ public class RequestBuySeed extends L2GameClientPacket
 			
 			// Update Castle Seeds Amount
 			SeedProduction seed = castle.getSeed(seedId, CastleManorManager.PERIOD_CURRENT);
-			seed.setCanProduce(seed.getCanProduce() - count);
+			seed.setAmount(seed.getAmount() - count);
 			if (Config.ALT_MANOR_SAVE_ALL_ACTIONS)
 			{
-				CastleManager.getInstance().getCastleById(_manorId).updateSeed(seed.getId(), seed.getCanProduce(), CastleManorManager.PERIOD_CURRENT);
+				CastleManager.getInstance().getCastleById(_manorId).updateSeed(seed.getSeedId(), seed.getAmount(), CastleManorManager.PERIOD_CURRENT);
 			}
 			
 			// Add item to Inventory and adjust update packet

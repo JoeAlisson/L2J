@@ -18,18 +18,16 @@
  */
 package com.l2jbr.gameserver.clientpackets;
 
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.cache.CrestCache;
 import com.l2jbr.gameserver.idfactory.IdFactory;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.repository.ClanRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 
 /**
@@ -46,7 +44,7 @@ public final class RequestExSetPledgeCrestLarge extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_size = readD();
+		_size = readInt();
 		if (_size > 2176)
 		{
 			return;
@@ -54,7 +52,7 @@ public final class RequestExSetPledgeCrestLarge extends L2GameClientPacket
 		if (_size > 0) // client CAN send a RequestExSetPledgeCrestLarge with the size set to 0 then format is just chd
 		{
 			_data = new byte[_size];
-			readB(_data);
+			readBytes(_data);
 		}
 	}
 	
@@ -100,7 +98,7 @@ public final class RequestExSetPledgeCrestLarge extends L2GameClientPacket
 		
 		if ((activeChar.getClanPrivileges() & L2Clan.CP_CL_REGISTER_CREST) == L2Clan.CP_CL_REGISTER_CREST)
 		{
-			if ((clan.getHasCastle() == 0) && (clan.getHasHideout() == 0))
+			if ((clan.getCastle() == 0) && (clan.getHasHideout() == 0))
 			{
 				activeChar.sendMessage("Only a clan that owns a clan hall or a castle can get their emblem displayed on clan related items"); // there is a system message for that but didnt found the id
 				return;
@@ -120,33 +118,10 @@ public final class RequestExSetPledgeCrestLarge extends L2GameClientPacket
 			{
 				crestCache.removePledgeCrestLarge(clan.getCrestLargeId());
 			}
-			
-			java.sql.Connection con = null;
-			
-			try
-			{
-				con = L2DatabaseFactory.getInstance().getConnection();
-				PreparedStatement statement = con.prepareStatement("UPDATE clan_data SET crest_large_id = ? WHERE clan_id = ?");
-				statement.setInt(1, newId);
-				statement.setInt(2, clan.getClanId());
-				statement.executeUpdate();
-				statement.close();
-			}
-			catch (SQLException e)
-			{
-				_log.warn("could not update the large crest id:" + e.getMessage());
-			}
-			finally
-			{
-				try
-				{
-					con.close();
-				}
-				catch (Exception e)
-				{
-				}
-			}
-			
+
+            ClanRepository repository  = DatabaseAccess.getRepository(ClanRepository.class);
+            repository.updateLargeClanCrestById(clan.getClanId(), newId);
+
 			clan.setCrestLargeId(newId);
 			clan.setHasCrestLarge(true);
 			

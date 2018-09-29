@@ -19,14 +19,13 @@
 package com.l2jbr.gameserver.serverpackets;
 
 import com.l2jbr.gameserver.instancemanager.CastleManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.CropProcure;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.CropProcure;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 
 public class SellListProcure extends L2GameServerPacket {
     private static final String _S__E9_SELLLISTPROCURE = "[S] E9 SellListProcure";
@@ -44,7 +43,7 @@ public class SellListProcure extends L2GameServerPacket {
         _castle = castleId;
         _procureList = CastleManager.getInstance().getCastleById(_castle).getCropProcure(0);
         for (CropProcure c : _procureList) {
-            L2ItemInstance item = _activeChar.getInventory().getItemByItemId(c.getId());
+            L2ItemInstance item = _activeChar.getInventory().getItemByItemId(c.getCropId());
             if ((item != null) && (c.getAmount() > 0)) {
                 _sellList.put(item, c.getAmount());
             }
@@ -53,19 +52,19 @@ public class SellListProcure extends L2GameServerPacket {
 
     @Override
     protected final void writeImpl() {
-        writeC(0xE9);
-        writeD(_money); // money
-        writeD(0x00); // lease ?
-        writeH(_sellList.size()); // list size
+        writeByte(0xE9);
+        writeInt(_money); // money
+        writeInt(0x00); // lease ?
+        writeShort(_sellList.size()); // list size
 
         for (L2ItemInstance item : _sellList.keySet()) {
-            writeH(item.getItem().getType1());
-            writeD(item.getObjectId());
-            writeD(item.getItemId());
-            writeD(_sellList.get(item)); // count
-            writeH(item.getItem().getType2());
-            writeH(0); // unknown
-            writeD(0); // price, u shouldnt get any adena for crops, only raw materials
+            writeShort(item.getItem().getType1().getId());
+            writeInt(item.getObjectId());
+            writeInt(item.getItemId());
+            writeInt(_sellList.get(item)); // count
+            writeShort(item.getItem().getType2().getId());
+            writeShort(0); // unknown
+            writeInt(0); // price, u shouldnt get any adena for crops, only raw materials
         }
     }
 

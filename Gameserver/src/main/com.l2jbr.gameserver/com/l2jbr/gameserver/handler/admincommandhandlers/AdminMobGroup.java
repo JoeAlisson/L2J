@@ -22,11 +22,11 @@ import com.l2jbr.gameserver.datatables.NpcTable;
 import com.l2jbr.gameserver.handler.IAdminCommandHandler;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.MagicSkillUser;
 import com.l2jbr.gameserver.serverpackets.SetupGauge;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import com.l2jbr.gameserver.util.Broadcast;
 
 
@@ -299,7 +299,7 @@ public class AdminMobGroup implements IAdminCommandHandler
 			return;
 		}
 		
-		L2NpcTemplate template = NpcTable.getInstance().getTemplate(templateId);
+		NpcTemplate template = NpcTable.getInstance().getTemplate(templateId);
 		
 		if (template == null)
 		{
@@ -639,7 +639,7 @@ public class AdminMobGroup implements IAdminCommandHandler
 		
 		for (MobGroup mobGroup : mobGroupList)
 		{
-			activeChar.sendMessage(mobGroup.getGroupId() + ": " + mobGroup.getActiveMobCount() + " alive out of " + mobGroup.getMaxMobCount() + " of NPC ID " + mobGroup.getTemplate().npcId + " (" + mobGroup.getStatus() + ")");
+			activeChar.sendMessage(mobGroup.getGroupId() + ": " + mobGroup.getActiveMobCount() + " alive out of " + mobGroup.getMaxMobCount() + " of NPC ID " + mobGroup.getTemplate().getId() + " (" + mobGroup.getStatus() + ")");
 		}
 		
 		activeChar.sendPacket(new SystemMessage(SystemMessageId.FRIEND_LIST_FOOT));

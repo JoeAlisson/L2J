@@ -35,19 +35,20 @@ import java.io.FileReader;
 import java.io.LineNumberReader;
 import java.util.*;
 
+import static java.util.Objects.isNull;
 
 public class RecipeController {
     protected static final Logger _log = LoggerFactory.getLogger(RecipeController.class.getName());
 
-    private static RecipeController _instance;
+    private static RecipeController INSTANCE;
     private final Map<Integer, L2RecipeList> _lists;
-    protected static final Map<L2PcInstance, RecipeItemMaker> _activeMakers = Collections.synchronizedMap(new WeakHashMap<L2PcInstance, RecipeItemMaker>());
+    protected static final Map<L2PcInstance, RecipeItemMaker> _activeMakers = Collections.synchronizedMap(new WeakHashMap<>());
 
     public static RecipeController getInstance() {
-        return _instance == null ? _instance = new RecipeController() : _instance;
+        return isNull(INSTANCE) ? INSTANCE = new RecipeController() : INSTANCE;
     }
 
-    public RecipeController() {
+    private RecipeController() {
         _lists = new LinkedHashMap<>();
         File recipesData = new File(Config.DATAPACK_ROOT, "data/recipes.csv");
         try (LineNumberReader lnr = new LineNumberReader(new BufferedReader(new FileReader(recipesData)))) {
@@ -198,7 +199,7 @@ public class RecipeController {
             StringTokenizer st = new StringTokenizer(line, ";");
             List<L2RecipeInstance> recipePartList = new LinkedList<>();
 
-            // we use common/dwarf for easy reading of the recipes.csv file
+            // we use common/DWARF for easy reading of the recipes.csv file
             String recipeTypeString = st.nextToken();
 
             // now parse the string into a boolean
@@ -385,7 +386,7 @@ public class RecipeController {
             }
 
             if ((_player == null) || (_target == null)) {
-                _log.warn("player or target == null (disconnected?), aborting" + _target + _player);
+                _log.warn("player or target == null (disconnect?), aborting" + _target + _player);
                 abort();
                 return;
             }

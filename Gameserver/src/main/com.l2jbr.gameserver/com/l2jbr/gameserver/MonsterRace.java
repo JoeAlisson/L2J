@@ -22,31 +22,27 @@ import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.datatables.NpcTable;
 import com.l2jbr.gameserver.idfactory.IdFactory;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 
 import java.lang.reflect.Constructor;
 
+import static java.util.Objects.isNull;
 
-public class MonsterRace
-{
+public class MonsterRace {
 	private final L2NpcInstance[] _monsters;
 	private static MonsterRace _instance;
-	private Constructor<?> _constructor;
 	private int[][] _speeds;
 	private final int[] _first, _second;
 	
-	private MonsterRace()
-	{
+	private MonsterRace() {
 		_monsters = new L2NpcInstance[8];
 		_speeds = new int[8][20];
 		_first = new int[2];
 		_second = new int[2];
 	}
 	
-	public static MonsterRace getInstance()
-	{
-		if (_instance == null)
-		{
+	public static MonsterRace getInstance() {
+		if (isNull(_instance)) {
 			_instance = new MonsterRace();
 		}
 		return _instance;
@@ -56,26 +52,19 @@ public class MonsterRace
 	{
 		int random = 0;
 		
-		for (int i = 0; i < 8; i++)
-		{
+		for (int i = 0; i < 8; i++) {
 			int id = 31003;
 			random = Rnd.get(24);
-			while (true)
-			{
-				for (int j = i - 1; j >= 0; j--)
-				{
-					if (_monsters[j].getTemplate().npcId == (id + random))
-					{
-						random = Rnd.get(24);
-						continue;
-					}
+			for (int j = i - 1; j >= 0; j--) {
+				if (_monsters[j].getTemplate().getId() == (id + random)) {
+					random = Rnd.get(24);
 				}
-				break;
 			}
+
 			try
 			{
-				L2NpcTemplate template = NpcTable.getInstance().getTemplate(id + random);
-				_constructor = Class.forName("com.l2jbr.gameserver.model.actor.instance." + template.type + "Instance").getConstructors()[0];
+				NpcTemplate template = NpcTable.getInstance().getTemplate(id + random);
+				Constructor<?> _constructor = template.getType().getInstanceClass().getConstructors()[0];
 				int objectId = IdFactory.getInstance().getNextId();
 				_monsters[i] = (L2NpcInstance) _constructor.newInstance(objectId, template);
 			}

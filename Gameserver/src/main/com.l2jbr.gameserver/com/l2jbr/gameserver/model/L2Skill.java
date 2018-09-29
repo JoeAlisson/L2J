@@ -23,7 +23,7 @@ import com.l2jbr.gameserver.datatables.HeroSkillTable;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.datatables.SkillTreeTable;
 import com.l2jbr.gameserver.model.actor.instance.*;
-import com.l2jbr.gameserver.model.base.ClassId;
+import com.l2jbr.gameserver.model.base.PlayerClass;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.EtcStatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
@@ -35,7 +35,7 @@ import com.l2jbr.gameserver.skills.effects.EffectTemplate;
 import com.l2jbr.gameserver.skills.funcs.Func;
 import com.l2jbr.gameserver.skills.funcs.FuncTemplate;
 import com.l2jbr.gameserver.skills.l2skills.*;
-import com.l2jbr.gameserver.templates.L2WeaponType;
+import com.l2jbr.gameserver.templates.ItemType;
 import com.l2jbr.gameserver.templates.StatsSet;
 import com.l2jbr.gameserver.util.Util;
 import org.slf4j.Logger;
@@ -428,8 +428,8 @@ public abstract class L2Skill {
     private final int _addCrossLearn; // -1 disable, otherwice SP price for others classes, default 1000
     private final float _mulCrossLearn; // multiplay for others classes, default 2
     private final float _mulCrossLearnRace; // multiplay for others races, default 2
-    private final float _mulCrossLearnProf; // multiplay for fighter/mage missmatch, default 3
-    private final List<ClassId> _canLearn; // which classes can learn
+    private final float _mulCrossLearnProf; // multiplay for FIGHTER/MAGE missmatch, default 3
+    private final List<PlayerClass> _canLearn; // which classes can learn
     private final List<Integer> _teachers; // which NPC teaches
     private final int _minPledgeClass;
 
@@ -542,7 +542,7 @@ public abstract class L2Skill {
             while (st.hasMoreTokens()) {
                 String cls = st.nextToken();
                 try {
-                    _canLearn.add(ClassId.valueOf(cls));
+                    _canLearn.add(PlayerClass.valueOf(cls));
                 } catch (Throwable t) {
                     _log.error( "Bad class " + cls + " to learn skill", t);
                 }
@@ -923,7 +923,7 @@ public abstract class L2Skill {
         return _mulCrossLearnProf;
     }
 
-    public final boolean getCanLearn(ClassId cls) {
+    public final boolean getCanLearn(PlayerClass cls) {
         return (_canLearn == null) || _canLearn.contains(cls);
     }
 
@@ -1039,11 +1039,6 @@ public abstract class L2Skill {
         }
     }
 
-    // int weapons[] = {L2Weapon.WEAPON_TYPE_ETC, L2Weapon.WEAPON_TYPE_BOW,
-    // L2Weapon.WEAPON_TYPE_POLE, L2Weapon.WEAPON_TYPE_DUALFIST,
-    // L2Weapon.WEAPON_TYPE_DUAL, L2Weapon.WEAPON_TYPE_BLUNT,
-    // L2Weapon.WEAPON_TYPE_SWORD, L2Weapon.WEAPON_TYPE_DAGGER};
-
     public final boolean getWeaponDependancy(L2Character activeChar) {
         int weaponsAllowed = getWeaponsAllowed();
         // check to see if skill has a weapon dependency.
@@ -1051,15 +1046,15 @@ public abstract class L2Skill {
             return true;
         }
         if (activeChar.getActiveWeaponItem() != null) {
-            L2WeaponType playerWeapon;
-            playerWeapon = activeChar.getActiveWeaponItem().getItemType();
+            ItemType playerWeapon;
+            playerWeapon = activeChar.getActiveWeaponItem().getType();
             int mask = playerWeapon.mask();
             if ((mask & weaponsAllowed) != 0) {
                 return true;
             }
             // can be on the secondary weapon
             if (activeChar.getSecondaryWeaponItem() != null) {
-                playerWeapon = activeChar.getSecondaryWeaponItem().getItemType();
+                playerWeapon = activeChar.getSecondaryWeaponItem().getType();
                 mask = playerWeapon.mask();
                 if ((mask & weaponsAllowed) != 0) {
                     return true;
@@ -1069,7 +1064,7 @@ public abstract class L2Skill {
         StringBuilder skillmsg = new StringBuilder();
         skillmsg.append(getName());
         skillmsg.append(" can only be used with weapons of type ");
-        for (L2WeaponType wt : L2WeaponType.values()) {
+        for (ItemType wt : ItemType.weapons()) {
             if ((wt.mask() & weaponsAllowed) != 0) {
                 skillmsg.append(wt).append('/');
             }
@@ -1085,7 +1080,7 @@ public abstract class L2Skill {
     public boolean checkCondition(L2Character activeChar, L2Object target, boolean itemOrWeapon) {
         if ((getCondition() & L2Skill.COND_SHIELD) != 0) {
             /*
-             * L2Armor armorPiece; L2ItemInstance dummy; dummy = activeChar.getInventory().getPaperdollItem(Inventory.PAPERDOLL_RHAND); armorPiece = (L2Armor) dummy.getItem();
+             * Armor armorPiece; L2ItemInstance dummy; dummy = activeChar.getInventory().getPaperdollItem(Inventory.PAPERDOLL_RHAND); armorPiece = (Armor) dummy.getItem();
              */
             // TODO add checks for shield here.
         }
@@ -2038,14 +2033,12 @@ public abstract class L2Skill {
         return targets[0];
     }
 
-    public final Func[] getStatFuncs(L2Effect effect, L2Character player) {
-        if (!(player instanceof L2PcInstance) && !(player instanceof L2Attackable) && !(player instanceof L2Summon)) {
-            return _emptyFunctionSet;
-        }
-        if (_funcTemplates == null) {
-            return _emptyFunctionSet;
-        }
+    public final List<Func> getStatFuncs(L2Effect effect, L2Character player) {
         List<Func> funcs = new LinkedList<>();
+        if (_funcTemplates == null || !(player instanceof L2PcInstance) && !(player instanceof L2Attackable) && !(player instanceof L2Summon)) {
+            return funcs;
+        }
+
         for (FuncTemplate t : _funcTemplates) {
             Env env = new Env();
             env.player = player;
@@ -2055,10 +2048,8 @@ public abstract class L2Skill {
                 funcs.add(f);
             }
         }
-        if (funcs.size() == 0) {
-            return _emptyFunctionSet;
-        }
-        return funcs.toArray(new Func[funcs.size()]);
+
+        return funcs;
     }
 
     public boolean hasEffects() {

@@ -27,12 +27,12 @@ import com.l2jbr.gameserver.instancemanager.SiegeManager;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.L2Skill;
 import com.l2jbr.gameserver.model.L2Skill.SkillType;
-import com.l2jbr.gameserver.model.L2TeleportLocation;
-import com.l2jbr.gameserver.model.L2TradeList;
 import com.l2jbr.gameserver.model.entity.ClanHall;
+import com.l2jbr.gameserver.model.entity.database.MerchantShop;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.Teleport;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 import java.text.SimpleDateFormat;
 import java.util.StringTokenizer;
@@ -50,7 +50,7 @@ public class L2ClanHallManagerInstance extends L2FolkInstance
 	 * @param objectId
 	 * @param template
 	 */
-	public L2ClanHallManagerInstance(int objectId, L2NpcTemplate template)
+	public L2ClanHallManagerInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 	}
@@ -812,7 +812,7 @@ public class L2ClanHallManagerInstance extends L2FolkInstance
 			{
 				// Notify the L2PcInstance AI with AI_INTENTION_INTERACT
 				// note: commented out so the player must stand close
-				// player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+				// player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
 			}
 			else
 			{
@@ -917,7 +917,7 @@ public class L2ClanHallManagerInstance extends L2FolkInstance
 		{
 			player.sendMessage("doTeleport(L2PcInstance player, int val) is called");
 		}
-		L2TeleportLocation list = TeleportLocationTable.getInstance().getTemplate(val);
+		Teleport list = TeleportLocationTable.getInstance().getTemplate(val);
 		if (list != null)
 		{
 			// you cannot teleport to village that is in siege Not sure about this one though
@@ -958,7 +958,7 @@ public class L2ClanHallManagerInstance extends L2FolkInstance
 			_log.debug("Showing buylist :" + player.getName() + " List ID :" + val);
 		}
 		
-		L2TradeList list = TradeController.getInstance().getBuyList(val);
+		MerchantShop list = TradeController.getInstance().getBuyList(val);
 		
 		if ((list != null) && list.getNpcId().equals(String.valueOf(getNpcId())))
 		{

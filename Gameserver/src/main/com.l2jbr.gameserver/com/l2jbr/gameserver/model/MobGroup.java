@@ -18,28 +18,30 @@
 package com.l2jbr.gameserver.model;
 
 import com.l2jbr.commons.util.Rnd;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.ai.L2ControllableMobAI;
 import com.l2jbr.gameserver.datatables.SpawnTable;
 import com.l2jbr.gameserver.model.actor.instance.L2ControllableMobInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
-
 
 /**
  * @author littlecrow
  */
 public final class MobGroup {
-    private final L2NpcTemplate _npcTemplate;
+    private static final Logger logger = LoggerFactory.getLogger(MobGroup.class);
+    private final NpcTemplate _npcTemplate;
     private final int _groupId;
     private final int _maxMobCount;
 
     private List<L2ControllableMobInstance> _mobs;
 
-    public MobGroup(int groupId, L2NpcTemplate npcTemplate, int maxMobCount) {
+    public MobGroup(int groupId, NpcTemplate npcTemplate, int maxMobCount) {
         _groupId = groupId;
         _npcTemplate = npcTemplate;
         _maxMobCount = maxMobCount;
@@ -88,7 +90,7 @@ public final class MobGroup {
         }
     }
 
-    public L2NpcTemplate getTemplate() {
+    public NpcTemplate getTemplate() {
         return _npcTemplate;
     }
 
@@ -128,8 +130,8 @@ public final class MobGroup {
                 SpawnTable.getInstance().addNewSpawn(spawn, false);
                 getMobs().add((L2ControllableMobInstance) spawn.doGroupSpawn());
             }
-        } catch (ClassNotFoundException e) {
-        } catch (NoSuchMethodException e2) {
+        } catch (NoSuchMethodException e) {
+            logger.error(e.getLocalizedMessage(), e);
         }
     }
 
@@ -217,7 +219,7 @@ public final class MobGroup {
 
             L2ControllableMobAI ai = (L2ControllableMobAI) mobInst.getAI();
             ai.setAlternateAI(L2ControllableMobAI.AI_NORMAL);
-            ai.setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+            ai.setIntention(Intention.AI_INTENTION_ACTIVE);
         }
     }
 
@@ -336,7 +338,7 @@ public final class MobGroup {
 
             L2ControllableMobAI ai = (L2ControllableMobAI) mobInst.getAI();
             ai.forceAttackGroup(otherGrp);
-            ai.setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+            ai.setIntention(Intention.AI_INTENTION_ACTIVE);
         }
     }
 }

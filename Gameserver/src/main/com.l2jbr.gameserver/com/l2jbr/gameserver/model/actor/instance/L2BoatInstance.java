@@ -25,9 +25,9 @@ import com.l2jbr.gameserver.clientpackets.Say2;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.actor.knownlist.BoatKnownList;
+import com.l2jbr.gameserver.model.entity.database.CharTemplate;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2CharTemplate;
-import com.l2jbr.gameserver.templates.L2Weapon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -196,7 +196,7 @@ public class L2BoatInstance extends L2Character {
     protected VehicleDeparture _vd = null;
     private Map<Integer, L2PcInstance> _inboat;
 
-    public L2BoatInstance(int objectId, L2CharTemplate template, String name) {
+    public L2BoatInstance(int objectId, CharTemplate template, String name) {
         super(objectId, template);
         super.setKnownList(new BoatKnownList(this));
         /*
@@ -660,7 +660,7 @@ public class L2BoatInstance extends L2Character {
      * @see com.l2jbr.gameserver.model.L2Character#getActiveWeaponItem()
      */
     @Override
-    public L2Weapon getActiveWeaponItem() {
+    public Weapon getActiveWeaponItem() {
         // TODO Auto-generated method stub
         return null;
     }
@@ -680,7 +680,7 @@ public class L2BoatInstance extends L2Character {
      * @see com.l2jbr.gameserver.model.L2Character#getSecondaryWeaponItem()
      */
     @Override
-    public L2Weapon getSecondaryWeaponItem() {
+    public Weapon getSecondaryWeaponItem() {
         // TODO Auto-generated method stub
         return null;
     }

@@ -18,9 +18,8 @@
  */
 package com.l2jbr.gameserver.serverpackets;
 
-import com.l2jbr.gameserver.Olympiad;
-import com.l2jbr.gameserver.model.entity.Hero;
-import com.l2jbr.gameserver.templates.StatsSet;
+import com.l2jbr.gameserver.model.entity.Heroes;
+import com.l2jbr.gameserver.model.entity.database.Hero;
 
 import java.util.Map;
 
@@ -32,11 +31,11 @@ import java.util.Map;
 public class ExHeroList extends L2GameServerPacket
 {
 	private static final String _S__FE_23_EXHEROLIST = "[S] FE:23 ExHeroList";
-	private final Map<Integer, StatsSet> _heroList;
+	private final Map<Integer, Hero> _heroList;
 	
 	public ExHeroList()
 	{
-		_heroList = Hero.getInstance().getHeroes();
+		_heroList = Heroes.getInstance().getHeroes();
 	}
 	
 	/*
@@ -46,22 +45,19 @@ public class ExHeroList extends L2GameServerPacket
 	@Override
 	protected void writeImpl()
 	{
-		writeC(0xfe);
-		writeH(0x23);
-		writeD(_heroList.size());
-		
-		for (Integer heroId : _heroList.keySet())
-		{
-			StatsSet hero = _heroList.get(heroId);
-			writeS(hero.getString(Olympiad.CHAR_NAME));
-			writeD(hero.getInteger(Olympiad.CLASS_ID));
-			writeS(hero.getString(Hero.CLAN_NAME, ""));
-			writeD(hero.getInteger(Hero.CLAN_CREST, 0));
-			writeS(hero.getString(Hero.ALLY_NAME, ""));
-			writeD(hero.getInteger(Hero.ALLY_CREST, 0));
-			writeD(hero.getInteger(Hero.COUNT));
-		}
-		
+		writeByte(0xfe);
+		writeShort(0x23);
+		writeInt(_heroList.size());
+
+        for (Hero hero: _heroList.values()) {
+            writeString(hero.getCharName());
+            writeInt(hero.getClassId());
+            writeString(hero.getClanName());
+            writeInt(hero.getclanCrest());
+            writeString(hero.getAllyName());
+            writeInt(hero.getAllyCrest());
+            writeInt(hero.getCount());
+        }
 	}
 	
 	/*

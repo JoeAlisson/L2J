@@ -18,7 +18,7 @@
 package com.l2jbr.gameserver.status;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.*;
 import com.l2jbr.gameserver.Shutdown;
 import com.l2jbr.gameserver.cache.HtmCache;
@@ -33,6 +33,7 @@ import com.l2jbr.gameserver.model.actor.instance.L2DoorInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2MonsterInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.CreatureSay;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
@@ -43,9 +44,6 @@ import com.l2jbr.gameserver.util.DynamicExtension;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.NoSuchElementException;
@@ -335,8 +333,8 @@ public class GameStatusThread extends Thread
 					_print.println("  --->  Player Count: " + playerCount + "/" + max);
 					_print.println("  +-->  Object Count: " + objectCount);
 					_print.println("  +-->      AI Count: " + AICount);
-					_print.println("  +.... L2Item(Void): " + itemVoidCount);
-					_print.println("  +.......... L2Item: " + itemCount);
+					_print.println("  +...... Item(Void): " + itemVoidCount);
+					_print.println("  +............ Item: " + itemCount);
 					_print.println("  +....... L2Monster: " + monsterCount);
 					_print.println("  +......... Minions: " + minionCount);
 					_print.println("  +.. Minions Groups: " + minionsGroupCount);
@@ -441,7 +439,7 @@ public class GameStatusThread extends Thread
 					}
 				}
 				/*
-				 * else if (_usrCommand.startsWith("unblock")) { try { _usrCommand = _usrCommand.substring(8); if (LoginServer.getInstance().unblockIp(_usrCommand)) { _log.warn("IP removed via TELNET by host: " + _csocket.getInetAddress().getHostAddress()); _print.println("The IP " + _usrCommand
+				 * else if (_usrCommand.startsWith("unblock")) { try { _usrCommand = _usrCommand.substring(8); if (LoginServer.getInstance().unblockIp(_usrCommand)) { _log.warn("IP removed via TELNET by host: " + _csocket.getInetAddress().getRemoteAddress()); _print.println("The IP " + _usrCommand
 				 * + " has been removed from the hack protection list!"); } else { _print.println("IP not found in hack protection list..."); } //TODO: with packet } catch (StringIndexOutOfBoundsException e) { _print.println("Please Enter the IP to Unblock!"); } }
 				 */
 				else if (_usrCommand.startsWith("kick"))
@@ -768,7 +766,7 @@ public class GameStatusThread extends Thread
 									list = player.getSellList();
 									for (TradeItem item : list.getItems())
 									{
-										content += item.getItem().getItemId() + ":" + item.getEnchant() + ":" + item.getPrice() + ":";
+										content += item.getItem().getId() + ":" + item.getEnchant() + ":" + item.getPrice() + ":";
 									}
 									content = player.getName() + ";" + "sell;" + player.getX() + ";" + player.getY() + ";" + content;
 									_print.println(content);
@@ -779,7 +777,7 @@ public class GameStatusThread extends Thread
 									list = player.getBuyList();
 									for (TradeItem item : list.getItems())
 									{
-										content += item.getItem().getItemId() + ":" + item.getEnchant() + ":" + item.getPrice() + ":";
+										content += item.getItem().getId() + ":" + item.getEnchant() + ":" + item.getPrice() + ":";
 									}
 									content = player.getName() + ";" + "buy;" + player.getX() + ";" + player.getY() + ";" + content;
 									_print.println(content);
@@ -912,68 +910,22 @@ public class GameStatusThread extends Thread
 		}
 	}
 	
-	private void jailOfflinePlayer(String name, int delay)
-	{
-		try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-			 PreparedStatement statement = con.prepareStatement("UPDATE characters SET x=?, y=?, z=?, in_jail=?, jail_timer=? WHERE char_name=?"))
-		{
-			statement.setInt(1, -114356);
-			statement.setInt(2, -249645);
-			statement.setInt(3, -2984);
-			statement.setInt(4, 1);
-			statement.setLong(5, delay * 60000L);
-			statement.setString(6, name);
-			statement.execute();
-			
-			if (statement.getUpdateCount() == 0)
-			{
-				_print.println("Character not found!");
-			}
-			else
-			{
-				_print.println("Character " + name + " jailed for " + (delay > 0 ? delay + " minutes." : "ever!"));
-			}
-		}
-		catch (SQLException se)
-		{
-			_print.println("SQLException while jailing player");
-			if (Config.DEBUG)
-			{
-				se.printStackTrace();
-			}
-		}
+	private void jailOfflinePlayer(String name, int delay) {
+        CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+        if(repository.updateJailStatusByName(name, -114356, -249645, -2984, 1, delay * 60000L) > 0) {
+            _print.println("Character " + name + " jailed for " + (delay > 0 ? delay + " minutes." : "ever!"));
+        } else {
+            _print.println("Character not found!");
+        }
 	}
 	
-	private void unjailOfflinePlayer(String name)
-	{
-		try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement statement = con.prepareStatement("UPDATE characters SET x=?, y=?, z=?, in_jail=?, jail_timer=? WHERE char_name=?"))
-		{
-			statement.setInt(1, 17836);
-			statement.setInt(2, 170178);
-			statement.setInt(3, -3507);
-			statement.setInt(4, 0);
-			statement.setLong(5, 0);
-			statement.setString(6, name);
-			statement.execute();
-			
-			if (statement.getUpdateCount() == 0)
-			{
-				_print.println("Character not found!");
-			}
-			else
-			{
-				_print.println("Character " + name + " set free.");
-			}
-		}
-		catch (SQLException se)
-		{
-			_print.println("SQLException while jailing player");
-			if (Config.DEBUG)
-			{
-				se.printStackTrace();
-			}
-		}
+	private void unjailOfflinePlayer(String name) {
+        CharacterRepository repository = DatabaseAccess.getRepository(CharacterRepository.class);
+        if(repository.updateJailStatusByName(name, 17836, 170178, -3507, 0, 0) > 0) {
+            _print.println("Character " + name + " set free.");
+        } else {
+            _print.println("Character not found!");
+        }
 	}
 	
 	private int getOnlineGMS()

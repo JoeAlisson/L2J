@@ -20,9 +20,9 @@ package com.l2jbr.gameserver.clientpackets;
 
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.datatables.CharTemplateTable;
-import com.l2jbr.gameserver.model.base.ClassId;
+import com.l2jbr.gameserver.model.base.PlayerClass;
+import com.l2jbr.gameserver.model.entity.database.PlayerTemplate;
 import com.l2jbr.gameserver.serverpackets.CharTemplates;
-import com.l2jbr.gameserver.templates.L2PcTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,34 +52,34 @@ public final class NewCharacter extends L2GameClientPacket
 		
 		CharTemplates ct = new CharTemplates();
 		
-		L2PcTemplate template = CharTemplateTable.getInstance().getTemplate(0);
+		PlayerTemplate template = CharTemplateTable.getInstance().getTemplate(0);
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.fighter); // human fighter
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.FIGHTER); // HUMAN FIGHTER
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.mage); // human mage
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.MAGE); // HUMAN MAGE
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.elvenFighter); // elf fighter
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.ELVEN_FIGHTER); // ELF FIGHTER
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.elvenMage); // elf mage
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.ELVEN_MAGE); // ELF MAGE
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.darkFighter); // dark elf fighter
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.DARK_FIGHTER); // dark ELF FIGHTER
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.darkMage); // dark elf mage
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.DARK_MAGE); // dark ELF MAGE
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.orcFighter); // orc fighter
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.ORC_FIGHTER); // ORC FIGHTER
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.orcMage); // orc mage
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.ORC_MAGE); // ORC MAGE
 		ct.addChar(template);
 		
-		template = CharTemplateTable.getInstance().getTemplate(ClassId.dwarvenFighter); // dwarf fighter
+		template = CharTemplateTable.getInstance().getTemplate(PlayerClass.DWARVEN_FIGHTER); // DWARF FIGHTER
 		ct.addChar(template);
 		
 		sendPacket(ct);

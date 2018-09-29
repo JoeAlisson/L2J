@@ -29,7 +29,6 @@ import java.net.SocketException;
 import java.util.LinkedList;
 import java.util.List;
 
-
 /**
  * @author Luno, Dezmond
  */
@@ -78,7 +77,7 @@ public class GeoEditorThread extends Thread {
 
                 if ((_mode == 2) && (timer > _sendDelay)) {
                     for (L2PcInstance gm : _gms) {
-                        if (!gm.getClient().getConnection().isClosed()) {
+                        if (gm.getClient().isConnected()) {
                             sendGmPosition(gm);
                         } else {
                             _gms.remove(gm);
@@ -96,7 +95,7 @@ public class GeoEditorThread extends Thread {
                 }
             }
         } catch (SocketException e) {
-            _log.warn("GeoEditor disconnected. " + e.getMessage());
+            _log.warn("GeoEditor disconnect. " + e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -122,7 +121,7 @@ public class GeoEditorThread extends Thread {
                 _out.flush();
             }
         } catch (SocketException e) {
-            _log.warn("GeoEditor disconnected. " + e.getMessage());
+            _log.warn("GeoEditor disconnect. " + e.getMessage());
             _working = false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -150,7 +149,7 @@ public class GeoEditorThread extends Thread {
                 _out.flush();
             }
         } catch (SocketException e) {
-            _log.warn("GeoEditor disconnected. " + e.getMessage());
+            _log.warn("GeoEditor disconnect. " + e.getMessage());
             _working = false;
         } catch (Exception e) {
             e.printStackTrace();

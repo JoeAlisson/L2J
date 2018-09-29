@@ -20,21 +20,21 @@ package com.l2jbr.gameserver.model.actor.instance;
 
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.L2Skill;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.serverpackets.NpcInfo;
 import com.l2jbr.gameserver.serverpackets.StopMove;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 import com.l2jbr.gameserver.util.Point3D;
 
 import java.util.LinkedHashMap;
 import java.util.concurrent.Future;
 
-import static com.l2jbr.gameserver.ai.CtrlIntention.AI_INTENTION_IDLE;
+import static com.l2jbr.gameserver.ai.Intention.AI_INTENTION_IDLE;
 
 
 // While a tamed beast behaves a lot like a pet (ingame) and does have
@@ -56,12 +56,12 @@ public final class L2TamedBeastInstance extends L2FeedableBeastInstance {
     private Future<?> _buffTask = null;
     private Future<?> _durationCheckTask = null;
 
-    public L2TamedBeastInstance(int objectId, L2NpcTemplate template) {
+    public L2TamedBeastInstance(int objectId, NpcTemplate template) {
         super(objectId, template);
         setHome(this);
     }
 
-    public L2TamedBeastInstance(int objectId, L2NpcTemplate template, L2PcInstance owner, int foodSkillId, int x, int y, int z) {
+    public L2TamedBeastInstance(int objectId, NpcTemplate template, L2PcInstance owner, int foodSkillId, int x, int y, int z) {
         super(objectId, template);
 
         setCurrentHp(getMaxHp());
@@ -274,7 +274,7 @@ public final class L2TamedBeastInstance extends L2FeedableBeastInstance {
 
         setTarget(target);
         doCast(skill);
-        getAI().setIntention(CtrlIntention.AI_INTENTION_FOLLOW, _owner);
+        getAI().setIntention(Intention.AI_INTENTION_FOLLOW, _owner);
     }
 
     private class CheckDuration implements Runnable {
@@ -387,7 +387,7 @@ public final class L2TamedBeastInstance extends L2FeedableBeastInstance {
             if (((_numBuffs * 2) / 3) > totalBuffsOnOwner) {
                 _tamedBeast.sitCastAndFollow(buffToGive, owner);
             }
-            getAI().setIntention(CtrlIntention.AI_INTENTION_FOLLOW, _tamedBeast.getOwner());
+            getAI().setIntention(Intention.AI_INTENTION_FOLLOW, _tamedBeast.getOwner());
         }
     }
 }

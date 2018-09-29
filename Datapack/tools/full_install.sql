@@ -1,17 +1,12 @@
-DROP TABLE IF EXISTS account_data;
 DROP TABLE IF EXISTS armor;
 DROP TABLE IF EXISTS armorsets;
 DROP TABLE IF EXISTS auction;
 DROP TABLE IF EXISTS auction_bid;
-DROP TABLE IF EXISTS auction_watch;
 DROP TABLE IF EXISTS augmentations;
 DROP TABLE IF EXISTS auto_chat;
 DROP TABLE IF EXISTS auto_chat_text;
-DROP TABLE IF EXISTS boxaccess;
-DROP TABLE IF EXISTS boxes;
 DROP TABLE IF EXISTS castle;
 DROP TABLE IF EXISTS castle_door;
-DROP TABLE IF EXISTS castle_doorupgrade;
 DROP TABLE IF EXISTS castle_siege_guards;
 DROP TABLE IF EXISTS char_templates;
 DROP TABLE IF EXISTS character_friends;

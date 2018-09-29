@@ -24,17 +24,17 @@ import com.l2jbr.gameserver.TradeController;
 import com.l2jbr.gameserver.datatables.ItemTable;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2Object;
-import com.l2jbr.gameserver.model.L2TradeList;
 import com.l2jbr.gameserver.model.actor.instance.L2MercManagerInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2MerchantInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
+import com.l2jbr.gameserver.model.entity.database.MerchantShop;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.InventoryUpdate;
 import com.l2jbr.gameserver.serverpackets.StatusUpdate;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2Item;
 import com.l2jbr.gameserver.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,9 +95,9 @@ public final class RequestWearItem extends L2GameClientPacket
 	{
 		// Read and Decrypt the RequestWearItem Client->Server Packet
 		_activeChar = getClient().getActiveChar();
-		_unknow = readD();
-		_listId = readD(); // List of ItemID to Wear
-		_count = readD(); // Number of Item to Wear
+		_unknow = readInt();
+		_listId = readInt(); // List of ItemID to Wear
+		_count = readInt(); // Number of Item to Wear
 		
 		if (_count < 0)
 		{
@@ -114,7 +114,7 @@ public final class RequestWearItem extends L2GameClientPacket
 		// Fill _items table with all ItemID to Wear
 		for (int i = 0; i < _count; i++)
 		{
-			int itemId = readD();
+			int itemId = readInt();
 			_items[i] = itemId;
 		}
 	}
@@ -149,12 +149,12 @@ public final class RequestWearItem extends L2GameClientPacket
 			return;
 		}
 		
-		L2TradeList list = null;
+		MerchantShop list = null;
 		
 		// Get the current merchant targeted by the player
 		L2MerchantInstance merchant = ((target != null) && (target instanceof L2MerchantInstance)) ? (L2MerchantInstance) target : null;
 		
-		List<L2TradeList> lists = TradeController.getInstance().getBuyListByNpcId(merchant.getNpcId());
+		List<MerchantShop> lists = TradeController.getInstance().getBuyListByNpcId(merchant.getNpcId());
 		
 		if (lists == null)
 		{
@@ -162,9 +162,9 @@ public final class RequestWearItem extends L2GameClientPacket
 			return;
 		}
 		
-		for (L2TradeList tradeList : lists)
+		for (MerchantShop tradeList : lists)
 		{
-			if (tradeList.getListId() == _listId)
+			if (tradeList.getId() == _listId)
 			{
 				list = tradeList;
 			}
@@ -176,7 +176,7 @@ public final class RequestWearItem extends L2GameClientPacket
 			return;
 		}
 		
-		_listId = list.getListId();
+		_listId = list.getId();
 		
 		// Check if the quantity of Item to Wear
 		if ((_count < 1) || (_listId >= 1000000))
@@ -202,7 +202,7 @@ public final class RequestWearItem extends L2GameClientPacket
 				return;
 			}
 			
-			L2Item template = ItemTable.getInstance().getTemplate(itemId);
+			ItemTemplate template = ItemTable.getInstance().getTemplate(itemId);
 			weight += template.getWeight();
 			slots++;
 			

@@ -46,9 +46,9 @@ public final class RequestSellItem extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_listId = readD();
-		_count = readD();
-		if ((_count <= 0) || ((_count * 12) > _buf.remaining()) || (_count > Config.MAX_ITEM_IN_PACKET))
+		_listId = readInt();
+		_count = readInt();
+		if ((_count <= 0) || ((_count * 12) > availableData()) || (_count > Config.MAX_ITEM_IN_PACKET))
 		{
 			_count = 0;
 			_items = null;
@@ -57,11 +57,11 @@ public final class RequestSellItem extends L2GameClientPacket
 		_items = new int[_count * 3];
 		for (int i = 0; i < _count; i++)
 		{
-			int objectId = readD();
+			int objectId = readInt();
 			_items[(i * 3) + 0] = objectId;
-			int itemId = readD();
+			int itemId = readInt();
 			_items[(i * 3) + 1] = itemId;
-			long cnt = readD();
+			long cnt = readInt();
 			if ((cnt > Integer.MAX_VALUE) || (cnt <= 0))
 			{
 				_count = 0;
@@ -128,7 +128,7 @@ public final class RequestSellItem extends L2GameClientPacket
 		
 		if (_listId > 1000000) // lease
 		{
-			if (merchant.getTemplate().npcId != (_listId - 1000000))
+			if (merchant.getTemplate().getId() != (_listId - 1000000))
 			{
 				sendPacket(new ActionFailed());
 				return;
@@ -167,7 +167,7 @@ public final class RequestSellItem extends L2GameClientPacket
 			item = player.getInventory().destroyItem("Sell", objectId, count, player, null);
 			
 			/*
-			 * TODO: Disabled until Leaseholders are rewritten ;-) int price = item.getReferencePrice()*(int)count/2; L2ItemInstance li = null; L2ItemInstance la = null; if (_listId > 1000000) { li = merchant.findLeaseItem(item.getItemId(),item.getEnchantLevel()); la = merchant.getLeaseAdena(); if
+			 * TODO: Disabled until Leaseholders are rewritten ;-) int price = item.getReferencePrice()*(int)count/2; L2ItemInstance li = null; L2ItemInstance la = null; if (_listId > 1000000) { li = merchant.findLeaseItem(item.getId(),item.getEnchantLevel()); la = merchant.getLeaseAdena(); if
 			 * (li == null || la == null) continue; price = li.getPriceToBuy()*(int)count; // player sells, thus merchant buys. if (price > la.getCount()) continue; }
 			 */
 			/*

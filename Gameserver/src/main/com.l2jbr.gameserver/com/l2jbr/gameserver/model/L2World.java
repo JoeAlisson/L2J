@@ -29,6 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static java.util.Objects.isNull;
 
 
 /**
@@ -79,7 +82,7 @@ public final class L2World {
     /**
      * List with the pets instances and their owner id
      */
-    private final LinkedHashMap<Integer, L2PetInstance> _petsInstance;
+    private final Map<Integer, L2PetInstance> _petsInstance;
 
     private static L2World _instance;
 
@@ -90,21 +93,15 @@ public final class L2World {
      * <BR>
      */
     private L2World() {
-        _allPlayers = new LinkedHashMap<>();
-        _petsInstance = new LinkedHashMap<>();
+        _allPlayers = new ConcurrentHashMap<>();
+        _petsInstance = new ConcurrentHashMap<>();
         _allObjects = L2ObjectMap.createL2ObjectMap();
 
         initRegions();
     }
 
-    /**
-     * Return the current instance of L2World.<BR>
-     * <BR>
-     *
-     * @return
-     */
     public static L2World getInstance() {
-        return _instance == null ? _instance = new L2World() : _instance;
+        return isNull(_instance) ? _instance = new L2World() : _instance;
     }
 
     /**
@@ -774,9 +771,7 @@ public final class L2World {
                 }
             }
         }
-
-        _log.info("L2World: (" + REGIONS_X + " by " + REGIONS_Y + ") World Region Grid set up.");
-
+        _log.info("L2World: ({} by {}) World Region Grid set up.", REGIONS_X, REGIONS_Y);
     }
 
     /**

@@ -17,7 +17,7 @@
  */
 package com.l2jbr.gameserver.model.actor.status;
 
-import com.l2jbr.gameserver.ai.CtrlEvent;
+import com.l2jbr.gameserver.ai.Event;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.actor.instance.L2NpcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PetInstance;
@@ -61,7 +61,7 @@ public class PetStatus extends SummonStatus
 			SystemMessage sm = new SystemMessage(SystemMessageId.PET_RECEIVED_S2_DAMAGE_BY_S1);
 			if (attacker instanceof L2NpcInstance)
 			{
-				sm.addNpcName(((L2NpcInstance) attacker).getTemplate().idTemplate);
+				sm.addNpcName(((L2NpcInstance) attacker).getTemplate().getTemplateId());
 			}
 			else
 			{
@@ -70,7 +70,7 @@ public class PetStatus extends SummonStatus
 			sm.addNumber((int) value);
 			getActiveChar().getOwner().sendPacket(sm);
 			
-			getActiveChar().getAI().notifyEvent(CtrlEvent.EVT_ATTACKED, attacker);
+			getActiveChar().getAI().notifyEvent(Event.EVT_ATTACKED, attacker);
 		}
 	}
 	

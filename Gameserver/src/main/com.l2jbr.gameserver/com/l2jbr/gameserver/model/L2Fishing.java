@@ -22,11 +22,12 @@ import com.l2jbr.gameserver.ThreadPoolManager;
 import com.l2jbr.gameserver.datatables.NpcTable;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PenaltyMonsterInstance;
+import com.l2jbr.gameserver.model.entity.database.Fish;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.ExFishingHpRegen;
 import com.l2jbr.gameserver.serverpackets.ExFishingStartCombat;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 import java.util.concurrent.Future;
 
@@ -72,14 +73,12 @@ public class L2Fishing implements Runnable
 			aiTask();
 		}
 	}
-	
-	// =========================================================
-	public L2Fishing(L2PcInstance Fisher, FishData fish, boolean isNoob, boolean isUpperGrade)
-	{
+
+	public L2Fishing(L2PcInstance Fisher, Fish fish, boolean isNoob, boolean isUpperGrade) {
 		_fisher = Fisher;
-		_fishMaxHp = fish.getHP();
+		_fishMaxHp = fish.getHp();
 		_fishCurHp = _fishMaxHp;
-		_regenHp = fish.getHpRegen();
+		_regenHp = fish.getHpregen();
 		_fishId = fish.getId();
 		_time = fish.getCombatTime() / 1000;
 		_isUpperGrade = isUpperGrade;
@@ -397,7 +396,7 @@ public class L2Fishing implements Runnable
 				npcid = 18319;
 				break;
 		}
-		L2NpcTemplate temp;
+		NpcTemplate temp;
 		temp = NpcTable.getInstance().getTemplate(npcid);
 		if (temp != null)
 		{

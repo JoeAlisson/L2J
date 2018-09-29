@@ -18,13 +18,15 @@
 package com.l2jbr.loginserver.serverpackets;
 
 import com.l2jbr.loginserver.L2LoginClient;
-import com.l2jbr.mmocore.SendablePacket;
-
+import org.l2j.mmocore.WritablePacket;
 
 /**
  * @author KenM
  */
-public abstract class L2LoginServerPacket extends SendablePacket<L2LoginClient>
-{
-	
+public abstract class L2LoginServerPacket extends WritablePacket<L2LoginClient> {
+
+    @Override
+    protected int packetSize() {
+        return 14; // HEADER + CHECKSUM + PADDING
+    }
 }

@@ -20,12 +20,12 @@ package com.l2jbr.gameserver.clientpackets;
 
 import com.l2jbr.commons.Config;
 import com.l2jbr.gameserver.TaskPriority;
-import com.l2jbr.gameserver.ai.CtrlIntention;
-import com.l2jbr.gameserver.model.L2CharPosition;
+import com.l2jbr.gameserver.ai.Intention;
+import com.l2jbr.gameserver.model.L2Position;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.PartyMemberPosition;
-import com.l2jbr.gameserver.templates.L2WeaponType;
+import com.l2jbr.gameserver.templates.ItemType;
 
 import java.nio.BufferUnderflowException;
 
@@ -65,15 +65,15 @@ public class MoveBackwardToLocation extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_targetX = readD();
-		_targetY = readD();
-		_targetZ = readD();
-		_originX = readD();
-		_originY = readD();
-		_originZ = readD();
+		_targetX = readInt();
+		_targetY = readInt();
+		_targetZ = readInt();
+		_originX = readInt();
+		_originY = readInt();
+		_originZ = readInt();
 		try
 		{
-			_moveMovement = readD(); // is 0 if cursor keys are used 1 if mouse is used
+			_moveMovement = readInt(); // is 0 if cursor keys are used 1 if mouse is used
 		}
 		catch (BufferUnderflowException e)
 		{
@@ -113,7 +113,7 @@ public class MoveBackwardToLocation extends L2GameClientPacket
 		{
 			activeChar.sendPacket(new ActionFailed());
 		}
-		else if (activeChar.isAttackingNow() && (activeChar.getActiveWeaponItem() != null) && (activeChar.getActiveWeaponItem().getItemType() == L2WeaponType.BOW))
+		else if (activeChar.isAttackingNow() && (activeChar.getActiveWeaponItem() != null) && (activeChar.getActiveWeaponItem().getType() == ItemType.BOW))
 		{
 			activeChar.sendPacket(new ActionFailed());
 		}
@@ -127,7 +127,7 @@ public class MoveBackwardToLocation extends L2GameClientPacket
 				activeChar.sendPacket(new ActionFailed());
 				return;
 			}
-			activeChar.getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, new L2CharPosition(_targetX, _targetY, _targetZ, 0));
+			activeChar.getAI().setIntention(Intention.AI_INTENTION_MOVE_TO, new L2Position(_targetX, _targetY, _targetZ, 0));
 			
 			if (activeChar.getParty() != null)
 			{

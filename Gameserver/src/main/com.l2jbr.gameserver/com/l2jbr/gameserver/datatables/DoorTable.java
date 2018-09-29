@@ -23,20 +23,21 @@ import com.l2jbr.gameserver.idfactory.IdFactory;
 import com.l2jbr.gameserver.instancemanager.ClanHallManager;
 import com.l2jbr.gameserver.model.actor.instance.L2DoorInstance;
 import com.l2jbr.gameserver.model.entity.ClanHall;
+import com.l2jbr.gameserver.model.entity.database.CastleDoor;
+import com.l2jbr.gameserver.model.entity.database.CharTemplate;
 import com.l2jbr.gameserver.pathfinding.AbstractNodeLoc;
-import com.l2jbr.gameserver.templates.L2CharTemplate;
-import com.l2jbr.gameserver.templates.StatsSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import static com.l2jbr.gameserver.util.GameserverMessages.getMessage;
 
 public class DoorTable {
-    private static Logger _log = LoggerFactory.getLogger(DoorTable.class.getName());
+    private static Logger _log = LoggerFactory.getLogger(DoorTable.class);
 
     private Map<Integer, L2DoorInstance> _staticItems;
 
@@ -45,14 +46,13 @@ public class DoorTable {
     public static DoorTable getInstance() {
         if (_instance == null) {
             _instance = new DoorTable();
+            _instance.parseData();
         }
-
         return _instance;
     }
 
-    public DoorTable() {
-        _staticItems = new LinkedHashMap<>();
-        // parseData();
+    private DoorTable() {
+        _staticItems = new HashMap<>();
     }
 
     public void reloadAll() {
@@ -67,14 +67,11 @@ public class DoorTable {
     }
 
     public void parseData() {
-        LineNumberReader lnr = null;
-        try {
-            File doorData = new File(Config.DATAPACK_ROOT, "data/door.csv");
-            lnr = new LineNumberReader(new BufferedReader(new FileReader(doorData)));
+        File doorData = new File(Config.DATAPACK_ROOT, "data/door.csv");
+        try (LineNumberReader lnr = new LineNumberReader(new BufferedReader(new FileReader(doorData)))) {
 
-            String line = null;
-            _log.warn("Searching clan halls doors:");
-
+            _log.debug("Searching clan halls doors:");
+            String line;
             while ((line = lnr.readLine()) != null) {
                 if ((line.trim().length() == 0) || line.startsWith("#")) {
                     continue;
@@ -100,12 +97,81 @@ public class DoorTable {
         } catch (IOException e) {
             _initialized = false;
             _log.warn("error while creating door table " + e);
-        } finally {
-            try {
-                lnr.close();
-            } catch (Exception e1) { /* ignore problems */
+        }
+        try {
+            getDoor(24190001).openMe();
+            getDoor(24190002).openMe();
+            getDoor(24190003).openMe();
+            getDoor(24190004).openMe();
+            getDoor(23180001).openMe();
+            getDoor(23180002).openMe();
+            getDoor(23180003).openMe();
+            getDoor(23180004).openMe();
+            getDoor(23180005).openMe();
+            getDoor(23180006).openMe();
+
+            checkAutoOpen();
+        } catch (NullPointerException e) {
+            _log.warn(getMessage("error.door.file"));
+            if (Config.DEBUG) {
+                _log.error(e.getLocalizedMessage(), e);
             }
         }
+    }
+
+    public static L2DoorInstance parseDoor(CastleDoor castleDoor) {
+        int rangeXMin = castleDoor.getRangeXmin();
+        int rangeXMax = castleDoor.getRangeXmax();
+        int rangeYMin = castleDoor.getRangeYmin();
+        int rangeYMax = castleDoor.getRangeYmax();
+        int rangeZMin = castleDoor.getRangeZmin();
+        int rangeZMax = castleDoor.getRangeZmax();
+        int x = castleDoor.getX();
+        int y = castleDoor.getY();
+        int z = castleDoor.getZ();
+
+        if (rangeXMin > rangeXMax) {
+            _log.error("Error in door data, ID: {} rangeXMin greater than rangeXMax", castleDoor.getId() );
+        }
+        if (rangeYMin > rangeYMax) {
+            _log.error("Error in door data, ID: {} rangeYMin greater than rangeYMax", castleDoor.getId());
+        }
+        if (rangeZMin > rangeZMax) {
+            _log.error("Error in door data, ID: {} rangeZMin greater than rangeZMax", castleDoor.getId());
+        }
+
+        float collisionRadius; // (max) radius for movement checks
+
+        if ((rangeXMax - rangeXMin) > (rangeYMax - rangeYMin)) {
+            collisionRadius = rangeYMax - rangeYMin;
+        } else {
+            collisionRadius = rangeXMax - rangeXMin;
+        }
+
+        float collisionHeight = rangeZMax - rangeZMin;
+
+        int id = castleDoor.getId();
+
+        String name = castleDoor.getName();
+        CharTemplate template =  CharTemplate.objectTemplate(castleDoor.getHp(), castleDoor.getpDef(), castleDoor.getmDef(), collisionRadius, collisionHeight);
+
+        L2DoorInstance door = new L2DoorInstance(IdFactory.getInstance().getNextId(), template, id, name, false);
+        initDoor(rangeXMin, rangeXMax, rangeYMin, rangeYMax, rangeZMin, rangeZMax, x, y, z, id, door);
+
+        return door;
+    }
+
+    private static void initDoor(int rangeXMin, int rangeXMax, int rangeYMin, int rangeYMax, int rangeZMin, int rangeZMax, int x, int y, int z, int id, L2DoorInstance door) {
+        door.setRange(rangeXMin, rangeYMin, rangeZMin, rangeXMax, rangeYMax, rangeZMax);
+        try {
+            door.setMapRegion(MapRegionTable.getInstance().getMapRegion(x, y));
+        } catch (Exception e) {
+            _log.error("Error in door data, ID: {}", id);
+            _log.error(e.getLocalizedMessage(), e);
+        }
+        door.setCurrentHpMp(door.getMaxHp(), door.getMaxMp());
+        door.setOpen(1);
+        door.setPositionInvisible(x, y, z);
     }
 
     public static L2DoorInstance parseList(String line) {
@@ -140,70 +206,18 @@ public class DoorTable {
         if (rangeZMin > rangeZMax) {
             _log.error("Error in door data, ID:" + id);
         }
-        int collisionRadius; // (max) radius for movement checks
+        float collisionRadius; // (max) radius for movement checks
         if ((rangeXMax - rangeXMin) > (rangeYMax - rangeYMin)) {
             collisionRadius = rangeYMax - rangeYMin;
         } else {
             collisionRadius = rangeXMax - rangeXMin;
         }
+        float collisionHeight = rangeZMax - rangeZMin;
 
-        StatsSet npcDat = new StatsSet();
-        npcDat.set("npcId", id);
-        npcDat.set("level", 0);
-        npcDat.set("jClass", "door");
 
-        npcDat.set("baseSTR", 0);
-        npcDat.set("baseCON", 0);
-        npcDat.set("baseDEX", 0);
-        npcDat.set("baseINT", 0);
-        npcDat.set("baseWIT", 0);
-        npcDat.set("baseMEN", 0);
-
-        npcDat.set("baseShldDef", 0);
-        npcDat.set("baseShldRate", 0);
-        npcDat.set("baseAccCombat", 38);
-        npcDat.set("baseEvasRate", 38);
-        npcDat.set("baseCritRate", 38);
-
-        // npcDat.set("name", "");
-        npcDat.set("collision_radius", collisionRadius);
-        npcDat.set("collision_height", rangeZMax - rangeZMin);
-        npcDat.set("sex", "male");
-        npcDat.set("type", "");
-        npcDat.set("baseAtkRange", 0);
-        npcDat.set("baseMpMax", 0);
-        npcDat.set("baseCpMax", 0);
-        npcDat.set("rewardExp", 0);
-        npcDat.set("rewardSp", 0);
-        npcDat.set("basePAtk", 0);
-        npcDat.set("baseMAtk", 0);
-        npcDat.set("basePAtkSpd", 0);
-        npcDat.set("aggroRange", 0);
-        npcDat.set("baseMAtkSpd", 0);
-        npcDat.set("rhand", 0);
-        npcDat.set("lhand", 0);
-        npcDat.set("armor", 0);
-        npcDat.set("baseWalkSpd", 0);
-        npcDat.set("baseRunSpd", 0);
-        npcDat.set("name", name);
-        npcDat.set("baseHpMax", hp);
-        npcDat.set("baseHpReg", 3.e-3f);
-        npcDat.set("baseMpReg", 3.e-3f);
-        npcDat.set("basePDef", pdef);
-        npcDat.set("baseMDef", mdef);
-
-        L2CharTemplate template = new L2CharTemplate(npcDat);
+        CharTemplate template = CharTemplate.objectTemplate(hp, pdef, mdef, collisionRadius, collisionHeight);
         L2DoorInstance door = new L2DoorInstance(IdFactory.getInstance().getNextId(), template, id, name, unlockable);
-        door.setRange(rangeXMin, rangeYMin, rangeZMin, rangeXMax, rangeYMax, rangeZMax);
-        try {
-            door.setMapRegion(MapRegionTable.getInstance().getMapRegion(x, y));
-        } catch (Exception e) {
-            _log.error("Error in door data, ID:" + id);
-        }
-        door.setCurrentHpMp(door.getMaxHp(), door.getMaxMp());
-        door.setOpen(1);
-        door.setXYZInvisible(x, y, z);
-
+        initDoor(rangeXMin, rangeXMax, rangeXMin, rangeYMax, rangeZMin, rangeZMax, x, y, z, id, door);
         return door;
     }
 
@@ -222,8 +236,7 @@ public class DoorTable {
     }
 
     public L2DoorInstance[] getDoors() {
-        L2DoorInstance[] _allTemplates = _staticItems.values().toArray(new L2DoorInstance[_staticItems.size()]);
-        return _allTemplates;
+        return _staticItems.values().toArray(new L2DoorInstance[0]);
     }
 
     /**

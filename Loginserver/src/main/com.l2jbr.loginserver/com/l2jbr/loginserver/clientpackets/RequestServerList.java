@@ -21,7 +21,6 @@ package com.l2jbr.loginserver.clientpackets;
 import com.l2jbr.loginserver.serverpackets.LoginFail.LoginFailReason;
 import com.l2jbr.loginserver.serverpackets.ServerList;
 
-
 /**
  * Format: ddc d: fist part of session id d: second part of session id c: ?
  */
@@ -58,10 +57,10 @@ public class RequestServerList extends L2LoginClientPacket
 	@Override
 	public boolean readImpl()
 	{
-		if (_buf.remaining() >= 8)
+		if (availableData() >= 8)
 		{
-			_skey1 = readD(); // loginOk 1
-			_skey2 = readD(); // loginOk 2
+			_skey1 = readInt(); // loginOk 1
+			_skey2 = readInt(); // loginOk 2
 			return true;
 		}
 		return false;
@@ -72,7 +71,7 @@ public class RequestServerList extends L2LoginClientPacket
 	{
 		if (getClient().getSessionKey().checkLoginPair(_skey1, _skey2))
 		{
-			getClient().sendPacket(new ServerList(getClient()));
+			getClient().sendPacket(new ServerList());
 		}
 		else
 		{

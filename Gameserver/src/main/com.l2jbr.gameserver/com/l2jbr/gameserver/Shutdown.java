@@ -19,7 +19,7 @@
 package com.l2jbr.gameserver;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.gameserverpackets.ServerStatus;
 import com.l2jbr.gameserver.instancemanager.*;
 import com.l2jbr.gameserver.model.L2World;
@@ -28,6 +28,8 @@ import com.l2jbr.gameserver.network.L2GameClient;
 import com.l2jbr.gameserver.serverpackets.ServerClose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.util.Objects.isNull;
 
 
 /**
@@ -115,8 +117,7 @@ public class Shutdown extends Thread
 	/**
 	 * Default constucter is only used internal to create the shutdown-hook instance
 	 */
-	public Shutdown()
-	{
+	public Shutdown() {
 		_secondsShut = -1;
 		_shutdownMode = SIGTERM;
 	}
@@ -147,10 +148,8 @@ public class Shutdown extends Thread
 	 * get the shutdown-hook instance the shutdown-hook instance is created by the first call of this function, but it has to be registrered externaly.
 	 * @return instance of Shutdown, to be used as shutdown hook
 	 */
-	public static Shutdown getInstance()
-	{
-		if (_instance == null)
-		{
+	public static Shutdown getInstance() {
+		if (isNull(_instance)) {
 			_instance = new Shutdown();
 		}
 		return _instance;
@@ -212,8 +211,8 @@ public class Shutdown extends Thread
 			// saveData sends messages to exit players, so sgutdown selector after it
 			try
 			{
-				GameServer.gameServer.getSelectorThread().shutdown();
-				GameServer.gameServer.getSelectorThread().setDaemon(true);
+				GameServer.shutdown();
+
 			}
 			catch (Throwable t)
 			{
@@ -221,15 +220,8 @@ public class Shutdown extends Thread
 			}
 			
 			// commit data, last chance
-			try
-			{
-				L2DatabaseFactory.getInstance().shutdown();
-			}
-			catch (Throwable t)
-			{
-				
-			}
-			
+			DatabaseAccess.shutdown();
+
 			// server will quit, when this function ends.
 			if (_instance._shutdownMode == GM_RESTART)
 			{
@@ -476,7 +468,7 @@ public class Shutdown extends Thread
 			ItemsOnGroundManager.getInstance().cleanUp();
 			System.out.println("ItemsOnGroundManager: All items on ground saved!!");
 		}
-		System.out.println("Data saved. All players disconnected, shutting down.");
+		System.out.println("Data saved. All players disconnect, shutting down.");
 		
 		try
 		{

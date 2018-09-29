@@ -20,14 +20,14 @@ package com.l2jbr.gameserver.model.actor.instance;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.SevenSigns;
 import com.l2jbr.gameserver.ThreadPoolManager;
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.L2Skill;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 import java.util.concurrent.ScheduledFuture;
 
@@ -64,7 +64,7 @@ public class L2CabaleBufferInstance extends L2NpcInstance
 			if (!canInteract(player))
 			{
 				// Notify the L2PcInstance AI with AI_INTENTION_INTERACT
-				player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+				player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
 			}
 			else
 			{
@@ -109,7 +109,7 @@ public class L2CabaleBufferInstance extends L2NpcInstance
 			
 			/**
 			 * For each known player in range, cast either the positive or negative buff. <BR>
-			 * The stats affected depend on the player type, either a fighter or a mystic. <BR>
+			 * The stats affected depend on the player type, either a FIGHTER or a mystic. <BR>
 			 * <BR>
 			 * Curse of Destruction (Loser)<BR>
 			 * - Fighters: -25% Accuracy, -25% Effect Resistance<BR>
@@ -193,7 +193,7 @@ public class L2CabaleBufferInstance extends L2NpcInstance
 		}
 	}
 	
-	public L2CabaleBufferInstance(int objectId, L2NpcTemplate template)
+	public L2CabaleBufferInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 		

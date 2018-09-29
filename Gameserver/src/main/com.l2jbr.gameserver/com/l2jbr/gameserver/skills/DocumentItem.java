@@ -19,6 +19,7 @@
 package com.l2jbr.gameserver.skills;
 
 import com.l2jbr.gameserver.Item;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
 import com.l2jbr.gameserver.templates.*;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -35,7 +36,7 @@ import java.util.Map;
  */
 final class DocumentItem extends DocumentBase {
     private Item _currentItem = null;
-    private final List<L2Item> _itemsInFile = new LinkedList<>();
+    private final List<ItemTemplate> _itemsInFile = new LinkedList<>();
     private Map<Integer, Item> _itemData = new LinkedHashMap<>();
 
     /**
@@ -127,21 +128,14 @@ final class DocumentItem extends DocumentBase {
         if (_currentItem.item != null) {
             return;
         }
-        if (_currentItem.type instanceof L2ArmorType) {
-            _currentItem.item = new L2Armor((L2ArmorType) _currentItem.type, _currentItem.set);
-        } else if (_currentItem.type instanceof L2WeaponType) {
-            _currentItem.item = new L2Weapon((L2WeaponType) _currentItem.type, _currentItem.set);
-        } else if (_currentItem.type instanceof L2EtcItemType) {
-            _currentItem.item = new L2EtcItem((L2EtcItemType) _currentItem.type, _currentItem.set);
-        } else {
-            throw new Error("Unknown item type " + _currentItem.type);
-        }
+
+        throw new Error("Unknown item type " + _currentItem.type);
     }
 
     /**
      * @return
      */
-    public List<L2Item> getItemList() {
+    public List<ItemTemplate> getItemList() {
         return _itemsInFile;
     }
 }

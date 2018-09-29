@@ -20,8 +20,7 @@ package com.l2jbr.gameserver.serverpackets;
 
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
-import com.l2jbr.gameserver.templates.L2Item;
-import com.l2jbr.gameserver.templates.L2Weapon;
+import com.l2jbr.gameserver.model.entity.database.Weapon;
 
 
 /**
@@ -47,76 +46,76 @@ public class GMViewWarehouseWithdrawList extends L2GameServerPacket
 	@Override
 	protected final void writeImpl()
 	{
-		writeC(0x95);
-		writeS(_playerName);
-		writeD(_money);
-		writeH(_items.length);
+		writeByte(0x95);
+		writeString(_playerName);
+		writeInt(_money);
+		writeShort(_items.length);
 		
 		for (L2ItemInstance item : _items)
 		{
-			writeH(item.getItem().getType1());
+			writeShort(item.getItem().getType1().getId());
 			
-			writeD(item.getObjectId());
-			writeD(item.getItemId());
-			writeD(item.getCount());
-			writeH(item.getItem().getType2());
-			writeH(item.getCustomType1());
+			writeInt(item.getObjectId());
+			writeInt(item.getItemId());
+			writeInt(item.getCount());
+			writeShort(item.getItem().getType2().getId());
+			writeShort(item.getCustomType1());
 			
 			switch (item.getItem().getType2())
 			{
-				case L2Item.TYPE2_WEAPON:
+				case TYPE2_WEAPON:
 				{
-					writeD(item.getItem().getBodyPart());
-					writeH(item.getEnchantLevel());
-					writeH(((L2Weapon) item.getItem()).getSoulShotCount());
-					writeH(((L2Weapon) item.getItem()).getSpiritShotCount());
+					writeInt(item.getItem().getBodyPart().getId());
+					writeShort(item.getEnchantLevel());
+					writeShort(((Weapon) item.getItem()).getSoulshots());
+					writeShort(((Weapon) item.getItem()).getSpiritshots());
 					break;
 				}
 				
-				case L2Item.TYPE2_SHIELD_ARMOR:
-				case L2Item.TYPE2_ACCESSORY:
-				case L2Item.TYPE2_PET_WOLF:
-				case L2Item.TYPE2_PET_HATCHLING:
-				case L2Item.TYPE2_PET_STRIDER:
-				case L2Item.TYPE2_PET_BABY:
+				case TYPE2_SHIELD_ARMOR:
+				case TYPE2_ACCESSORY:
+				case TYPE2_PET_WOLF:
+				case TYPE2_PET_HATCHLING:
+				case TYPE2_PET_STRIDER:
+				case TYPE2_PET_BABY:
 				{
-					writeD(item.getItem().getBodyPart());
-					writeH(item.getEnchantLevel());
-					writeH(0x00);
-					writeH(0x00);
+					writeInt(item.getItem().getBodyPart().getId());
+					writeShort(item.getEnchantLevel());
+					writeShort(0x00);
+					writeShort(0x00);
 					break;
 				}
 			}
 			
-			writeD(item.getObjectId());
+			writeInt(item.getObjectId());
 			
 			switch (item.getItem().getType2())
 			{
-				case L2Item.TYPE2_WEAPON:
+				case TYPE2_WEAPON:
 				{
 					if (item.isAugmented())
 					{
-						writeD(0x0000FFFF & item.getAugmentation().getAugmentationId());
-						writeD(item.getAugmentation().getAugmentationId() >> 16);
+						writeInt(0x0000FFFF & item.getAugmentation().getAugmentationId());
+						writeInt(item.getAugmentation().getAugmentationId() >> 16);
 					}
 					else
 					{
-						writeD(0);
-						writeD(0);
+						writeInt(0);
+						writeInt(0);
 					}
 					
 					break;
 				}
 				
-				case L2Item.TYPE2_SHIELD_ARMOR:
-				case L2Item.TYPE2_ACCESSORY:
-				case L2Item.TYPE2_PET_WOLF:
-				case L2Item.TYPE2_PET_HATCHLING:
-				case L2Item.TYPE2_PET_STRIDER:
-				case L2Item.TYPE2_PET_BABY:
+				case TYPE2_SHIELD_ARMOR:
+				case TYPE2_ACCESSORY:
+				case TYPE2_PET_WOLF:
+				case TYPE2_PET_HATCHLING:
+				case TYPE2_PET_STRIDER:
+				case TYPE2_PET_BABY:
 				{
-					writeD(0);
-					writeD(0);
+					writeInt(0);
+					writeInt(0);
 				}
 			}
 		}

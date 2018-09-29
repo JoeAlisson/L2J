@@ -1,12 +1,12 @@
 package com.l2jbr.gameserver.model.actor.instance;
 
-import com.l2jbr.gameserver.ai.CtrlIntention;
+import com.l2jbr.gameserver.ai.Intention;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
 import com.l2jbr.gameserver.serverpackets.ActionFailed;
 import com.l2jbr.gameserver.serverpackets.MyTargetSelected;
 import com.l2jbr.gameserver.serverpackets.NpcHtmlMessage;
 import com.l2jbr.gameserver.serverpackets.ValidateLocation;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
 
 /**
@@ -18,7 +18,7 @@ public class L2CastleBlacksmithInstance extends L2FolkInstance
 	protected static final int COND_BUSY_BECAUSE_OF_SIEGE = 1;
 	protected static final int COND_OWNER = 2;
 	
-	public L2CastleBlacksmithInstance(int objectId, L2NpcTemplate template)
+	public L2CastleBlacksmithInstance(int objectId, NpcTemplate template)
 	{
 		super(objectId, template);
 	}
@@ -50,7 +50,7 @@ public class L2CastleBlacksmithInstance extends L2FolkInstance
 			if (!canInteract(player))
 			{
 				// Notify the L2PcInstance AI with AI_INTENTION_INTERACT
-				player.getAI().setIntention(CtrlIntention.AI_INTENTION_INTERACT, this);
+				player.getAI().setIntention(Intention.AI_INTENTION_INTERACT, this);
 			}
 			else
 			{

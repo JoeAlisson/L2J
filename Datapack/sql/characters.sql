@@ -2,10 +2,10 @@
 -- Table structure for characters
 -- ---------------------------
 CREATE TABLE IF NOT EXISTS characters (
-  account_name varchar(45) default NULL,
+  account_name varchar(45) NOT NULL,
   obj_Id decimal(11,0) NOT NULL default '0',
   char_name varchar(35) NOT NULL,
-  `level` decimal(11,0) default NULL,
+  `level` decimal(11,0) default 1,
   maxHp decimal(11,0) default NULL,
   curHp decimal(18,0) default NULL,
   maxCp decimal(11,0) default NULL,
@@ -80,5 +80,9 @@ CREATE TABLE IF NOT EXISTS characters (
   clan_create_expiry_time DECIMAL(20,0) NOT NULL DEFAULT 0,
   death_penalty_level int(2) NOT NULL DEFAULT 0,
   PRIMARY KEY  (obj_Id),
-  KEY `clanid` (`clanid`)
+  INDEX (clanid, online),
+  INDEX (char_name),
+  INDEX (account_name, obj_Id),
+  INDEX (accesslevel)
+
 ) ;

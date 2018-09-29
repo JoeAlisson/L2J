@@ -18,11 +18,8 @@
  */
 package com.l2jbr.gameserver.serverpackets;
 
-import com.l2jbr.gameserver.model.L2ItemInstance;
-import com.l2jbr.gameserver.model.L2TradeList;
-
-import java.util.LinkedList;
-import java.util.List;
+import com.l2jbr.gameserver.model.entity.database.MerchantItem;
+import com.l2jbr.gameserver.model.entity.database.MerchantShop;
 
 
 /**
@@ -35,32 +32,32 @@ public final class BuyListSeed extends L2GameServerPacket {
     private static final String _S__E8_BUYLISTSEED = "[S] E8 BuyListSeed";
 
     private final int _manorId;
-    private List<L2ItemInstance> _list = new LinkedList<>();
     private final int _money;
+    private final MerchantShop shop;
 
-    public BuyListSeed(L2TradeList list, int manorId, int currentMoney) {
+    public BuyListSeed(MerchantShop shop, int manorId, int currentMoney) {
+        this.shop = shop;
         _money = currentMoney;
         _manorId = manorId;
-        _list = list.getItems();
     }
 
     @Override
     protected final void writeImpl() {
-        writeC(0xE8);
+        writeByte(0xE8);
 
-        writeD(_money); // current money
-        writeD(_manorId); // manor id
+        writeInt(_money); // current money
+        writeInt(_manorId); // manor id
 
-        writeH(_list.size()); // list length
+        writeShort(shop.getItems().size()); // list length
 
-        for (L2ItemInstance item : _list) {
-            writeH(0x04); // item->type1
-            writeD(0x00); // objectId
-            writeD(item.getItemId()); // item id
-            writeD(item.getCount()); // item count
-            writeH(0x04); // item->type2
-            writeH(0x00); // unknown :)
-            writeD(item.getPriceToSell()); // price
+        for (MerchantItem item : shop.getItems()) {
+            writeShort(0x04); // item->type1
+            writeInt(0x00); // objectId
+            writeInt(item.getItemId()); // item id
+            writeInt(item.getCount()); // item count
+            writeShort(0x04); // item->type2
+            writeShort(0x00); // unknown :)
+            writeInt(item.getPrice()); // price
         }
     }
 

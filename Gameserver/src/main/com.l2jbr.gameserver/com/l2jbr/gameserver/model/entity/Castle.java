@@ -19,7 +19,8 @@
 package com.l2jbr.gameserver.model.entity;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
+import com.l2jbr.commons.util.Util;
 import com.l2jbr.gameserver.Announcements;
 import com.l2jbr.gameserver.CastleUpdater;
 import com.l2jbr.gameserver.SevenSigns;
@@ -28,70 +29,76 @@ import com.l2jbr.gameserver.datatables.ClanTable;
 import com.l2jbr.gameserver.datatables.DoorTable;
 import com.l2jbr.gameserver.instancemanager.CastleManager;
 import com.l2jbr.gameserver.instancemanager.CastleManorManager;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.CropProcure;
-import com.l2jbr.gameserver.instancemanager.CastleManorManager.SeedProduction;
 import com.l2jbr.gameserver.model.L2Clan;
 import com.l2jbr.gameserver.model.L2Manor;
 import com.l2jbr.gameserver.model.L2Object;
 import com.l2jbr.gameserver.model.actor.instance.L2DoorInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.CastleDoor;
+import com.l2jbr.gameserver.model.entity.database.CropProcure;
+import com.l2jbr.gameserver.model.entity.database.SeedProduction;
+import com.l2jbr.gameserver.model.entity.database.castleEntity;
+import com.l2jbr.gameserver.model.entity.database.repository.CastleManorProcureRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.CastleManorProductionRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.CastleRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.ClanRepository;
 import com.l2jbr.gameserver.model.zone.type.L2CastleZone;
 import com.l2jbr.gameserver.serverpackets.PledgeShowInfoUpdate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.*;
-
 
 public class Castle {
     protected static Logger _log = LoggerFactory.getLogger(Castle.class.getName());
 
-    private List<CropProcure> _procure = new LinkedList<>();
-    private List<SeedProduction> _production = new LinkedList<>();
-    private List<CropProcure> _procureNext = new LinkedList<>();
-    private List<SeedProduction> _productionNext = new LinkedList<>();
+    private List<CropProcure> _procure = new ArrayList<>();
+    private List<SeedProduction> _production = new ArrayList<>();
+    private List<CropProcure> _procureNext = new ArrayList<>();
+    private List<SeedProduction> _productionNext = new ArrayList<>();
     private boolean _isNextPeriodApproved = false;
 
-    private static final String CASTLE_MANOR_DELETE_PRODUCTION = "DELETE FROM castle_manor_production WHERE castle_id=?;";
-    private static final String CASTLE_MANOR_DELETE_PRODUCTION_PERIOD = "DELETE FROM castle_manor_production WHERE castle_id=? AND period=?;";
-    private static final String CASTLE_MANOR_DELETE_PROCURE = "DELETE FROM castle_manor_procure WHERE castle_id=?;";
-    private static final String CASTLE_MANOR_DELETE_PROCURE_PERIOD = "DELETE FROM castle_manor_procure WHERE castle_id=? AND period=?;";
-    private static final String CASTLE_UPDATE_CROP = "UPDATE castle_manor_procure SET can_buy=? WHERE crop_id=? AND castle_id=? AND period=?";
-    private static final String CASTLE_UPDATE_SEED = "UPDATE castle_manor_production SET can_produce=? WHERE seed_id=? AND castle_id=? AND period=?";
-    // =========================================================
-    // Data Field
-    private int _castleId = 0;
-    private final List<L2DoorInstance> _doors = new LinkedList<>();
-    private final List<String> _doorDefault = new LinkedList<>();
-    private String _name = "";
+    private final List<L2DoorInstance> _doors = new ArrayList<>();
+    private final List<CastleDoor> _doorDefault = new ArrayList<>();
     private int _ownerId = 0;
     private Siege _siege = null;
     private Calendar _siegeDate;
-    private int _siegeDayOfWeek = 7; // Default to saturday
-    private int _siegeHourOfDay = 20; // Default to 8 pm server time
-    private int _taxPercent = 0;
-    private double _taxRate = 0;
-    private int _treasury = 0;
+    private double _taxRate;
     private L2CastleZone _zone;
     private L2Clan _formerOwner = null;
     private int _nbArtifact = 1;
-    private final Map<Integer, Integer> _engrave = new LinkedHashMap<>();
+    private final Map<Integer, Integer> _engrave = new HashMap<>();
+    private castleEntity entity;
 
-    // =========================================================
-    // Constructor
-    public Castle(int castleId) {
-        _castleId = castleId;
-        if ((_castleId == 7) || (castleId == 9)) {
+    public Castle(castleEntity castleEntity) {
+        entity = castleEntity;
+
+        if (entity.getId() == 7 || entity.getId() == 9) {
             _nbArtifact = 2;
         }
-        load();
-        loadDoor();
-    }
 
-    // =========================================================
-    // Method - Public
+        _siegeDate = Calendar.getInstance();
+        _siegeDate.setTimeInMillis(castleEntity.getSiegeDate());
+
+        _taxRate = entity.getTaxPercent() / 100.0;
+
+        ClanRepository clanRepository = DatabaseAccess.getRepository(ClanRepository.class);
+        clanRepository.findClanIdByCastle(entity.getId()).ifPresent(clanId -> {
+            _ownerId = clanId;
+            L2Clan clan = ClanTable.getInstance().getClan(getOwnerId()); // Try to find clan instance
+            ThreadPoolManager.getInstance().scheduleGeneral(new CastleUpdater(clan, 1), 3600000); // Schedule owner tasks to start running
+        });
+
+        for (CastleDoor castleDoor : castleEntity.getDoors()) {
+
+            _doorDefault.add(castleDoor);
+
+            L2DoorInstance door = DoorTable.parseDoor(castleDoor);
+            door.spawnMe(door.getX(), door.getY(), door.getZ());
+            _doors.add(door);
+            DoorTable.getInstance().putDoor(door);
+        }
+    }
 
     public void Engrave(L2Clan clan, int objId) {
         _engrave.put(objId, clan.getClanId());
@@ -125,7 +132,7 @@ public class Castle {
             return;
         }
 
-        if (_name.equalsIgnoreCase("Schuttgart") || _name.equalsIgnoreCase("Goddard")) {
+        if (entity.getName().equalsIgnoreCase("Schuttgart") || entity.getName().equalsIgnoreCase("Goddard")) {
             Castle rune = CastleManager.getInstance().getCastle("rune");
             if (rune != null) {
                 int runeTax = (int) (amount * rune.getTaxRate());
@@ -135,7 +142,7 @@ public class Castle {
                 amount -= runeTax;
             }
         }
-        if (!_name.equalsIgnoreCase("aden") && !_name.equalsIgnoreCase("Rune") && !_name.equalsIgnoreCase("Schuttgart") && !_name.equalsIgnoreCase("Goddard")) // If current castle instance is not Aden, Rune, Goddard or Schuttgart.
+        if (!entity.getName().equalsIgnoreCase("aden") && !entity.getName().equalsIgnoreCase("Rune") && !entity.getName().equalsIgnoreCase("Schuttgart") && !entity.getName().equalsIgnoreCase("Goddard")) // If current castle instance is not Aden, Rune, Goddard or Schuttgart.
         {
             Castle aden = CastleManager.getInstance().getCastle("aden");
             if (aden != null) {
@@ -151,12 +158,6 @@ public class Castle {
         addToTreasuryNoTax(amount);
     }
 
-    /**
-     * Add amount to castle instance's treasury (warehouse), no tax paying.
-     *
-     * @param amount
-     * @return
-     */
     public boolean addToTreasuryNoTax(int amount) {
         if (getOwnerId() <= 0) {
             return false;
@@ -164,33 +165,20 @@ public class Castle {
 
         if (amount < 0) {
             amount *= -1;
-            if (_treasury < amount) {
+            if (getTreasury() < amount) {
                 return false;
             }
-            _treasury -= amount;
+            entity.setTreasury(getTreasury() - amount);
         } else {
-            if (((long) _treasury + amount) > Integer.MAX_VALUE) {
-                _treasury = Integer.MAX_VALUE;
+            if (((long) getTreasury() + amount) > Integer.MAX_VALUE) {
+                entity.setTreasury(Integer.MAX_VALUE);
             } else {
-                _treasury += amount;
+                entity.setTreasury(getTreasury() + amount);
             }
         }
 
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("Update castle set treasury = ? where id = ?");
-            statement.setInt(1, getTreasury());
-            statement.setInt(2, getCastleId());
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CastleRepository repository = DatabaseAccess.getRepository(CastleRepository.class);
+        repository.save(entity);
         return true;
     }
 
@@ -258,11 +246,6 @@ public class Castle {
         }
     }
 
-    // This method is used to begin removing all castle upgrades
-    public void removeUpgrade() {
-        removeDoorUpgrade();
-    }
-
     // This method updates the castle tax rate
     public void setOwner(L2Clan clan) {
         // Remove old owner
@@ -275,8 +258,8 @@ public class Castle {
                         CastleManager.getInstance().removeCirclet(_formerOwner, getCastleId());
                     }
                 }
-                oldOwner.setHasCastle(0); // Unset has castle flag for old owner
-                new Announcements().announceToAll(oldOwner.getName() + " has lost " + getName() + " castle!");
+                oldOwner.setCastle(0); // Unset has castle flag for old owner
+                Announcements.getInstance().announceToAll(oldOwner.getName() + " has lost " + getName() + " castle!");
             }
         }
 
@@ -295,8 +278,8 @@ public class Castle {
             if (Config.REMOVE_CASTLE_CIRCLETS) {
                 CastleManager.getInstance().removeCirclet(_formerOwner, getCastleId());
             }
-            clan.setHasCastle(0);
-            new Announcements().announceToAll(clan.getName() + " has lost " + getName() + " castle");
+            clan.setCastle(0);
+            Announcements.getInstance().announceToAll(clan.getName() + " has lost " + getName() + " castle");
             clan.broadcastToOnlineMembers(new PledgeShowInfoUpdate(clan));
         }
 
@@ -332,24 +315,11 @@ public class Castle {
     }
 
     public void setTaxPercent(int taxPercent) {
-        _taxPercent = taxPercent;
-        _taxRate = _taxPercent / 100.0;
+        entity.setTaxPercent(taxPercent);
+        _taxRate = taxPercent / 100.0;
 
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("Update castle set taxPercent = ? where id = ?");
-            statement.setInt(1, taxPercent);
-            statement.setInt(2, getCastleId());
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CastleRepository repository = DatabaseAccess.getRepository(CastleRepository.class);
+        repository.save(entity);
     }
 
     /**
@@ -370,7 +340,7 @@ public class Castle {
             L2DoorInstance door = getDoors().get(i);
             if (door.getCurrentHp() <= 0) {
                 door.decayMe(); // Kill current if not killed already
-                door = DoorTable.parseList(_doorDefault.get(i));
+                door = DoorTable.parseDoor(_doorDefault.get(i));
                 if (isDoorWeak) {
                     door.setCurrentHp(door.getMaxHp() / 2);
                 }
@@ -378,184 +348,6 @@ public class Castle {
                 getDoors().set(i, door);
             } else if (door.getOpen() == 0) {
                 door.closeMe();
-            }
-        }
-        loadDoorUpgrade(); // Check for any upgrade the doors may have
-    }
-
-    // This method upgrade door
-    public void upgradeDoor(int doorId, int hp, int pDef, int mDef) {
-        L2DoorInstance door = getDoor(doorId);
-        if (door == null) {
-            return;
-        }
-
-        if (door.getDoorId() == doorId) {
-            door.setCurrentHp(door.getMaxHp() + hp);
-
-            saveDoorUpgrade(doorId, hp, pDef, mDef);
-            return;
-        }
-    }
-
-    // =========================================================
-    // Method - Private
-    // This method loads castle
-    private void load() {
-        java.sql.Connection con = null;
-        try {
-            PreparedStatement statement;
-            ResultSet rs;
-
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement("Select * from castle where id = ?");
-            statement.setInt(1, getCastleId());
-            rs = statement.executeQuery();
-
-            while (rs.next()) {
-                _name = rs.getString("name");
-                // _OwnerId = rs.getInt("ownerId");
-
-                _siegeDate = Calendar.getInstance();
-                _siegeDate.setTimeInMillis(rs.getLong("siegeDate"));
-
-                _siegeDayOfWeek = rs.getInt("siegeDayOfWeek");
-                if ((_siegeDayOfWeek < 1) || (_siegeDayOfWeek > 7)) {
-                    _siegeDayOfWeek = 7;
-                }
-
-                _siegeHourOfDay = rs.getInt("siegeHourOfDay");
-                if ((_siegeHourOfDay < 0) || (_siegeHourOfDay > 23)) {
-                    _siegeHourOfDay = 20;
-                }
-
-                _taxPercent = rs.getInt("taxPercent");
-                _treasury = rs.getInt("treasury");
-            }
-
-            statement.close();
-
-            _taxRate = _taxPercent / 100.0;
-
-            statement = con.prepareStatement("Select clan_id from clan_data where hasCastle = ?");
-            statement.setInt(1, getCastleId());
-            rs = statement.executeQuery();
-
-            while (rs.next()) {
-                _ownerId = rs.getInt("clan_id");
-            }
-
-            if (getOwnerId() > 0) {
-                L2Clan clan = ClanTable.getInstance().getClan(getOwnerId()); // Try to find clan instance
-                ThreadPoolManager.getInstance().scheduleGeneral(new CastleUpdater(clan, 1), 3600000); // Schedule owner tasks to start running
-            }
-
-            statement.close();
-        } catch (Exception e) {
-            System.out.println("Exception: loadCastleData(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
-    }
-
-    // This method loads castle door data from database
-    private void loadDoor() {
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("Select * from castle_door where castleId = ?");
-            statement.setInt(1, getCastleId());
-            ResultSet rs = statement.executeQuery();
-
-            while (rs.next()) {
-                // Create list of the door default for use when respawning dead doors
-                _doorDefault.add(rs.getString("name") + ";" + rs.getInt("id") + ";" + rs.getInt("x") + ";" + rs.getInt("y") + ";" + rs.getInt("z") + ";" + rs.getInt("range_xmin") + ";" + rs.getInt("range_ymin") + ";" + rs.getInt("range_zmin") + ";" + rs.getInt("range_xmax") + ";" + rs.getInt("range_ymax") + ";" + rs.getInt("range_zmax") + ";" + rs.getInt("hp") + ";" + rs.getInt("pDef") + ";" + rs.getInt("mDef"));
-
-                L2DoorInstance door = DoorTable.parseList(_doorDefault.get(_doorDefault.size() - 1));
-                door.spawnMe(door.getX(), door.getY(), door.getZ());
-                _doors.add(door);
-                DoorTable.getInstance().putDoor(door);
-            }
-
-            statement.close();
-        } catch (Exception e) {
-            System.out.println("Exception: loadCastleDoor(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
-    }
-
-    // This method loads castle door upgrade data from database
-    private void loadDoorUpgrade() {
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("Select * from castle_doorupgrade where doorId in (Select Id from castle_door where castleId = ?)");
-            statement.setInt(1, getCastleId());
-            ResultSet rs = statement.executeQuery();
-
-            while (rs.next()) {
-                upgradeDoor(rs.getInt("id"), rs.getInt("hp"), rs.getInt("pDef"), rs.getInt("mDef"));
-            }
-
-            statement.close();
-        } catch (Exception e) {
-            System.out.println("Exception: loadCastleDoorUpgrade(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
-    }
-
-    private void removeDoorUpgrade() {
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("delete from castle_doorupgrade where doorId in (select id from castle_door where castleId=?)");
-            statement.setInt(1, getCastleId());
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            System.out.println("Exception: removeDoorUpgrade(): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
-    }
-
-    private void saveDoorUpgrade(int doorId, int hp, int pDef, int mDef) {
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = con.prepareStatement("INSERT INTO castle_doorupgrade (doorId, hp, pDef, mDef) values (?,?,?,?)");
-            statement.setInt(1, doorId);
-            statement.setInt(2, hp);
-            statement.setInt(3, pDef);
-            statement.setInt(4, mDef);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            System.out.println("Exception: saveDoorUpgrade(int doorId, int hp, int pDef, int mDef): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
             }
         }
     }
@@ -567,49 +359,23 @@ public class Castle {
             _ownerId = 0; // Remove owner
         }
 
-        java.sql.Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement;
+        ClanRepository repository = DatabaseAccess.getRepository(ClanRepository.class);
+        repository.removeClastle(getCastleId());
+        repository.updateCastleById(getOwnerId(), getCastleId());
 
-            // ============================================================================
-            // NEED TO REMOVE HAS CASTLE FLAG FROM CLAN_DATA
-            // SHOULD BE CHECKED FROM CASTLE TABLE
-            statement = con.prepareStatement("UPDATE clan_data SET hasCastle=0 WHERE hasCastle=?");
-            statement.setInt(1, getCastleId());
-            statement.execute();
-            statement.close();
+        // Announce to clan memebers
+        if (clan != null) {
+            clan.setCastle(getCastleId()); // Set has castle flag for new owner
+            Announcements.getInstance().announceToAll(clan.getName() + " has taken " + getName() + " castle!");
+            clan.broadcastToOnlineMembers(new PledgeShowInfoUpdate(clan));
 
-            statement = con.prepareStatement("UPDATE clan_data SET hasCastle=? WHERE clan_id=?");
-            statement.setInt(1, getCastleId());
-            statement.setInt(2, getOwnerId());
-            statement.execute();
-            statement.close();
-            // ============================================================================
-
-            // Announce to clan memebers
-            if (clan != null) {
-                clan.setHasCastle(getCastleId()); // Set has castle flag for new owner
-                new Announcements().announceToAll(clan.getName() + " has taken " + getName() + " castle!");
-                clan.broadcastToOnlineMembers(new PledgeShowInfoUpdate(clan));
-
-                ThreadPoolManager.getInstance().scheduleGeneral(new CastleUpdater(clan, 1), 3600000); // Schedule owner tasks to start running
-            }
-        } catch (Exception e) {
-            System.out.println("Exception: updateOwnerInDB(L2Clan clan): " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
+            ThreadPoolManager.getInstance().scheduleGeneral(new CastleUpdater(clan, 1), 3600000); // Schedule owner tasks to start running
         }
     }
 
-    // =========================================================
-    // Property
+
     public final int getCastleId() {
-        return _castleId;
+        return Objects.requireNonNullElse(entity.getId(), 0);
     }
 
     public final L2DoorInstance getDoor(int doorId) {
@@ -631,7 +397,7 @@ public class Castle {
     }
 
     public final String getName() {
-        return _name;
+        return entity.getName();
     }
 
     public final int getOwnerId() {
@@ -653,15 +419,15 @@ public class Castle {
     }
 
     public final int getSiegeDayOfWeek() {
-        return _siegeDayOfWeek;
+        return entity.getSiegeDayOfWeek();
     }
 
     public final int getSiegeHourOfDay() {
-        return _siegeHourOfDay;
+        return entity.getSiegeHourOfDay();
     }
 
     public final int getTaxPercent() {
-        return _taxPercent;
+        return entity.getTaxPercent();
     }
 
     public final double getTaxRate() {
@@ -669,7 +435,7 @@ public class Castle {
     }
 
     public final int getTreasury() {
-        return _treasury;
+        return entity.getTreasury();
     }
 
     public List<SeedProduction> getSeedProduction(int period) {
@@ -698,7 +464,7 @@ public class Castle {
 
     public synchronized SeedProduction getSeed(int seedId, int period) {
         for (SeedProduction seed : getSeedProduction(period)) {
-            if (seed.getId() == seedId) {
+            if (seed.getSeedId() == seedId) {
                 return seed;
             }
         }
@@ -707,7 +473,7 @@ public class Castle {
 
     public synchronized CropProcure getCrop(int cropId, int period) {
         for (CropProcure crop : getCropProcure(period)) {
-            if (crop.getId() == cropId) {
+            if (crop.getCropId() == cropId) {
                 return crop;
             }
         }
@@ -729,7 +495,7 @@ public class Castle {
         int total = 0;
         if (production != null) {
             for (SeedProduction seed : production) {
-                total += L2Manor.getInstance().getSeedBuyPrice(seed.getId()) * seed.getStartProduce();
+                total += L2Manor.getInstance().getSeedBuyPrice(seed.getSeedId()) * seed.getStartAmount();
             }
         }
         if (procure != null) {
@@ -740,257 +506,53 @@ public class Castle {
         return total;
     }
 
-    // save manor production data
     public void saveSeedData() {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement(CASTLE_MANOR_DELETE_PRODUCTION);
-            statement.setInt(1, getCastleId());
-
-            statement.execute();
-            statement.close();
-
-            if (_production != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_production VALUES ";
-                String values[] = new String[_production.size()];
-                for (SeedProduction s : _production) {
-                    values[count] = "(" + getCastleId() + "," + s.getId() + "," + s.getCanProduce() + "," + s.getStartProduce() + "," + s.getPrice() + "," + CastleManorManager.PERIOD_CURRENT + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-
-            if (_productionNext != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_production VALUES ";
-                String values[] = new String[_productionNext.size()];
-                for (SeedProduction s : _productionNext) {
-                    values[count] = "(" + getCastleId() + "," + s.getId() + "," + s.getCanProduce() + "," + s.getStartProduce() + "," + s.getPrice() + "," + CastleManorManager.PERIOD_NEXT + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-        } catch (Exception e) {
-            _log.info("Error adding seed production data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        saveSeedData(CastleManorManager.PERIOD_CURRENT);
+        saveSeedData(CastleManorManager.PERIOD_NEXT);
     }
 
-    // save manor production data for specified period
     public void saveSeedData(int period) {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
+        CastleManorProductionRepository repository = DatabaseAccess.getRepository(CastleManorProductionRepository.class);
+        repository.deleteByIdAndPeriod(getCastleId(), period);
 
-            statement = con.prepareStatement(CASTLE_MANOR_DELETE_PRODUCTION_PERIOD);
-            statement.setInt(1, getCastleId());
-            statement.setInt(2, period);
-            statement.execute();
-            statement.close();
+        List<SeedProduction> seedProductions = getSeedProduction(period);
 
-            List<SeedProduction> prod = null;
-            prod = getSeedProduction(period);
-
-            if (prod != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_production VALUES ";
-                String values[] = new String[prod.size()];
-                for (SeedProduction s : prod) {
-                    values[count] = "(" + getCastleId() + "," + s.getId() + "," + s.getCanProduce() + "," + s.getStartProduce() + "," + s.getPrice() + "," + period + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-        } catch (Exception e) {
-            _log.info("Error adding seed production data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
+        if (!Util.isNullOrEmpty(seedProductions)) {
+            for (SeedProduction s : seedProductions) {
+                SeedProduction production = new SeedProduction(getCastleId(), s.getSeedId(), s.getAmount(), s.getStartAmount(), s.getPrice(), period);
+                repository.save(production);
             }
         }
     }
 
-    // save crop procure data
     public void saveCropData() {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement(CASTLE_MANOR_DELETE_PROCURE);
-            statement.setInt(1, getCastleId());
-            statement.execute();
-            statement.close();
-            if (_procure != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_procure VALUES ";
-                String values[] = new String[_procure.size()];
-                for (CropProcure cp : _procure) {
-                    values[count] = "(" + getCastleId() + "," + cp.getId() + "," + cp.getAmount() + "," + cp.getStartAmount() + "," + cp.getPrice() + "," + cp.getReward() + "," + CastleManorManager.PERIOD_CURRENT + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-            if (_procureNext != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_procure VALUES ";
-                String values[] = new String[_procureNext.size()];
-                for (CropProcure cp : _procureNext) {
-                    values[count] = "(" + getCastleId() + "," + cp.getId() + "," + cp.getAmount() + "," + cp.getStartAmount() + "," + cp.getPrice() + "," + cp.getReward() + "," + CastleManorManager.PERIOD_NEXT + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-        } catch (Exception e) {
-            _log.info("Error adding crop data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        saveCropData(CastleManorManager.PERIOD_CURRENT);
+        saveCropData(CastleManorManager.PERIOD_NEXT);
     }
 
-    // save crop procure data for specified period
     public void saveCropData(int period) {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
+        CastleManorProcureRepository repository = DatabaseAccess.getRepository(CastleManorProcureRepository.class);
+        repository.deleteByIdAndPeriod(getCastleId(), period);
 
-            statement = con.prepareStatement(CASTLE_MANOR_DELETE_PROCURE_PERIOD);
-            statement.setInt(1, getCastleId());
-            statement.setInt(2, period);
-            statement.execute();
-            statement.close();
+        List<CropProcure> procures = getCropProcure(period);
 
-            List<CropProcure> proc = null;
-            proc = getCropProcure(period);
-
-            if (proc != null) {
-                int count = 0;
-                String query = "INSERT INTO castle_manor_procure VALUES ";
-                String values[] = new String[proc.size()];
-
-                for (CropProcure cp : proc) {
-                    values[count] = "(" + getCastleId() + "," + cp.getId() + "," + cp.getAmount() + "," + cp.getStartAmount() + "," + cp.getPrice() + "," + cp.getReward() + "," + period + ")";
-                    count++;
-                }
-                if (values.length > 0) {
-                    query += values[0];
-                    for (int i = 1; i < values.length; i++) {
-                        query += "," + values[i];
-                    }
-                    statement = con.prepareStatement(query);
-                    statement.execute();
-                    statement.close();
-                }
-            }
-        } catch (Exception e) {
-            _log.info("Error adding crop data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
+        if (!Util.isNullOrEmpty(procures)) {
+            for (CropProcure cp : procures) {
+                CropProcure procure = new CropProcure(getCastleId(), cp.getCropId(), cp.getAmount(),
+                        cp.getStartAmount(), cp.getPrice(), cp.getReward(), period);
+                repository.save(procure);
             }
         }
     }
 
     public void updateCrop(int cropId, int amount, int period) {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement(CASTLE_UPDATE_CROP);
-            statement.setInt(1, amount);
-            statement.setInt(2, cropId);
-            statement.setInt(3, getCastleId());
-            statement.setInt(4, period);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            _log.info("Error adding crop data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CastleManorProcureRepository repository = DatabaseAccess.getRepository(CastleManorProcureRepository.class);
+        repository.updateCanBuyCrop(getCastleId(), cropId, period, amount);
     }
 
     public void updateSeed(int seedId, int amount, int period) {
-        java.sql.Connection con = null;
-        PreparedStatement statement;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            statement = con.prepareStatement(CASTLE_UPDATE_SEED);
-            statement.setInt(1, amount);
-            statement.setInt(2, seedId);
-            statement.setInt(3, getCastleId());
-            statement.setInt(4, period);
-            statement.execute();
-            statement.close();
-        } catch (Exception e) {
-            _log.info("Error adding seed production data for castle " + getName() + ": " + e.getMessage());
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CastleManorProductionRepository repository = DatabaseAccess.getRepository(CastleManorProductionRepository.class);
+        repository.updateSeedAmountInPeriod(getCastleId(), seedId, amount, period);
     }
 
     public boolean isNextPeriodApproved() {

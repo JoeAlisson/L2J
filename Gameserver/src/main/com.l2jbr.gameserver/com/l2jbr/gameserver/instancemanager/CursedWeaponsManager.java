@@ -18,12 +18,15 @@
 package com.l2jbr.gameserver.instancemanager;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.gameserver.model.*;
 import com.l2jbr.gameserver.model.actor.instance.L2FestivalMonsterInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2RiftInvaderInstance;
 import com.l2jbr.gameserver.model.actor.instance.L2SiegeGuardInstance;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.CursedWeaponRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.ItemRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.SystemMessage;
 import org.slf4j.Logger;
@@ -34,15 +37,9 @@ import org.w3c.dom.Node;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
+import static java.util.Objects.isNull;
 
 /**
  * @author Micht
@@ -50,25 +47,21 @@ import java.util.Set;
 public class CursedWeaponsManager {
     private static final Logger _log = LoggerFactory.getLogger(CursedWeaponsManager.class.getName());
 
-    // =========================================================
     private static CursedWeaponsManager _instance;
 
-    public static final CursedWeaponsManager getInstance() {
-        if (_instance == null) {
+    public static CursedWeaponsManager getInstance() {
+        if (isNull(_instance)) {
             _instance = new CursedWeaponsManager();
         }
         return _instance;
     }
 
-    // =========================================================
-    // Data Field
+
     private Map<Integer, CursedWeapon> _cursedWeapons;
 
-    // =========================================================
-    // Constructor
     public CursedWeaponsManager() {
         _log.info("Initializing CursedWeaponsManager");
-        _cursedWeapons = new LinkedHashMap<>();
+        _cursedWeapons = new HashMap<>();
 
         if (!Config.ALLOW_CURSED_WEAPONS) {
             return;
@@ -80,16 +73,12 @@ public class CursedWeaponsManager {
         _log.info("Loaded : " + _cursedWeapons.size() + " cursed weapon(s).");
     }
 
-    // =========================================================
-    // Method - Private
     public final void reload() {
         _instance = new CursedWeaponsManager();
     }
 
-    private final void load() {
-        if (Config.DEBUG) {
-            System.out.print("  Parsing ... ");
-        }
+    private void load() {
+        _log.debug(" Parsing ... ");
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setValidating(false);
@@ -97,9 +86,7 @@ public class CursedWeaponsManager {
 
             File file = new File(Config.DATAPACK_ROOT + "/data/cursedWeapons.xml");
             if (!file.exists()) {
-                if (Config.DEBUG) {
-                    System.out.println("NO FILE");
-                }
+                _log.debug("NO FILE");
                 return;
             }
 
@@ -147,156 +134,54 @@ public class CursedWeaponsManager {
                     }
                 }
             }
-
-            if (Config.DEBUG) {
-                System.out.println("OK");
-            }
+            _log.debug("OK");
         } catch (Exception e) {
             _log.error( "Error parsing cursed weapons file.", e);
-
-            if (Config.DEBUG) {
-                System.out.println("ERROR");
-            }
-            return;
         }
     }
 
-    private final void restore() {
-        if (Config.DEBUG) {
-            System.out.print("  Restoring ... ");
-        }
-        Connection con = null;
-        try {
-            // Retrieve the L2PcInstance from the characters table of the database
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            PreparedStatement statement = con.prepareStatement("SELECT itemId, playerId, playerKarma, playerPkKills, nbKills, endTime FROM cursed_weapons");
-            ResultSet rset = statement.executeQuery();
-
-            if (rset.next()) {
-                int itemId = rset.getInt("itemId");
-                int playerId = rset.getInt("playerId");
-                int playerKarma = rset.getInt("playerKarma");
-                int playerPkKills = rset.getInt("playerPkKills");
-                int nbKills = rset.getInt("nbKills");
-                long endTime = rset.getLong("endTime");
-
-                CursedWeapon cw = _cursedWeapons.get(itemId);
-                cw.setPlayerId(playerId);
-                cw.setPlayerKarma(playerKarma);
-                cw.setPlayerPkKills(playerPkKills);
-                cw.setNbKills(nbKills);
-                cw.setEndTime(endTime);
-                cw.reActivate();
-            }
-
-            rset.close();
-            statement.close();
-
-            if (Config.DEBUG) {
-                System.out.println("OK");
-            }
-        } catch (Exception e) {
-            _log.warn("Could not restore CursedWeapons data: " + e);
-
-            if (Config.DEBUG) {
-                System.out.println("ERROR");
-            }
-            return;
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+    private void restore() {
+        CursedWeaponRepository repository = DatabaseAccess.getRepository(CursedWeaponRepository.class);
+        repository.findAll().forEach(cursedWeapon -> {
+            CursedWeapon cw = _cursedWeapons.get(cursedWeapon.getId());
+            cw.setPlayerId(cursedWeapon.getPlayerId());
+            cw.setPlayerKarma(cursedWeapon.getPlayerKarma());
+            cw.setPlayerPkKills(cursedWeapon.getPlayerPkKills());
+            cw.setNbKills(cursedWeapon.getNbKills());
+            cw.setEndTime(cursedWeapon.getEndTime());
+            cw.reActivate();
+        });
     }
 
-    private final void controlPlayers() {
-        if (Config.DEBUG) {
-            System.out.print("  Checking players ... ");
-        }
+    private void controlPlayers() {
+        CharacterRepository characterRepository = DatabaseAccess.getRepository(CharacterRepository.class);
+        ItemRepository itemRepository = DatabaseAccess.getRepository(ItemRepository.class);
+        // TODO: See comments below...
+        // This entire for loop should NOT be necessary, since it is already handled by
+        // CursedWeapon.endOfLife(). However, if we indeed *need* to duplicate it for safety,
+        // then we'd better make sure that it FULLY cleans up inactive cursed weapons!
+        // Undesired effects result otherwise, such as player with no zariche but with karma
+        // or a lost-child entry in the cursedweapons table, without a corresponding one in items...
+        for (CursedWeapon cw : _cursedWeapons.values()) {
+            if (cw.isActivated()) {
+                continue;
+            }
 
-        Connection con = null;
-        try {
-            // Retrieve the L2PcInstance from the characters table of the database
-            con = L2DatabaseFactory.getInstance().getConnection();
-            PreparedStatement statement = null;
-            ResultSet rset = null;
+            // Do an item check to be sure that the cursed weapon isn't hold by someone
+            int itemId = cw.getItemId();
+            itemRepository.findOwnerIdByItem(itemId).ifPresent(owner -> {
+                _log.warn("PROBLEM : Player {} owns the cursed weapon {} but he shouldn't.", owner, itemId);
 
-            // TODO: See comments below...
-            // This entire for loop should NOT be necessary, since it is already handled by
-            // CursedWeapon.endOfLife(). However, if we indeed *need* to duplicate it for safety,
-            // then we'd better make sure that it FULLY cleans up inactive cursed weapons!
-            // Undesired effects result otherwise, such as player with no zariche but with karma
-            // or a lost-child entry in the cursedweapons table, without a corresponding one in items...
-            for (CursedWeapon cw : _cursedWeapons.values()) {
-                if (cw.isActivated()) {
-                    continue;
+                if(itemRepository.deleteByOwnerAndItem(owner, itemId) == 0) {
+                    _log.warn("Error while deleting cursed weapon {} from userId {}", itemId, owner);
                 }
 
-                // Do an item check to be sure that the cursed weapon isn't hold by someone
-                int itemId = cw.getItemId();
-                try {
-                    statement = con.prepareStatement("SELECT owner_id FROM items WHERE item_id=?");
-                    statement.setInt(1, itemId);
-                    rset = statement.executeQuery();
-
-                    if (rset.next()) {
-                        // A player has the cursed weapon in his inventory ...
-                        int playerId = rset.getInt("owner_id");
-                        _log.info("PROBLEM : Player " + playerId + " owns the cursed weapon " + itemId + " but he shouldn't.");
-
-                        // Delete the item
-                        statement = con.prepareStatement("DELETE FROM items WHERE owner_id=? AND item_id=?");
-                        statement.setInt(1, playerId);
-                        statement.setInt(2, itemId);
-                        if (statement.executeUpdate() != 1) {
-                            _log.warn("Error while deleting cursed weapon " + itemId + " from userId " + playerId);
-                        }
-                        statement.close();
-
-                        // Delete the skill
-                        /*
-                         * statement = con.prepareStatement("DELETE FROM character_skills WHERE char_obj_id=? AND skill_id="); statement.setInt(1, playerId); statement.setInt(2, cw.getSkillId()); if (statement.executeUpdate() != 1) {
-                         * _log.warn("Error while deleting cursed weapon "+itemId+" skill from userId "+playerId); }
-                         */
-                        // Restore the player's old karma and pk count
-                        statement = con.prepareStatement("UPDATE characters SET karma=?, pkkills=? WHERE obj_id=?");
-                        statement.setInt(1, cw.getPlayerKarma());
-                        statement.setInt(2, cw.getPlayerPkKills());
-                        statement.setInt(3, playerId);
-                        if (statement.executeUpdate() != 1) {
-                            _log.warn("Error while updating karma & pkkills for userId " + cw.getPlayerId());
-                        }
-                        // clean up the cursedweapons table.
-                        removeFromDb(itemId);
-                    }
-                    rset.close();
-                    statement.close();
-                } catch (SQLException sqlE) {
+                if(characterRepository.updatePKAndKarma(owner, cw.getPlayerPkKills(), cw.getPlayerKarma()) < 1){
+                    _log.warn("Error while updating karma & pkkills for userId {}", cw.getPlayerId());
                 }
-                // close the statement to avoid multiply prepared statement errors in following iterations.
-                try {
-                    con.close();
-                } catch (Exception e) {
-                }
-            }
-        } catch (Exception e) {
-            _log.warn("Could not check CursedWeapons data: " + e);
 
-            if (Config.DEBUG) {
-                System.out.println("ERROR");
-            }
-            return;
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
-
-        if (Config.DEBUG) {
-            System.out.println("DONE");
+                removeFromDb(itemId);
+            });
         }
     }
 
@@ -387,7 +272,7 @@ public class CursedWeaponsManager {
 
                 SystemMessage sm = new SystemMessage(SystemMessageId.S2_MINUTE_OF_USAGE_TIME_ARE_LEFT_FOR_S1);
                 sm.addString(cw.getName());
-                // sm.addItemName(cw.getItemId());
+                // sm.addItemName(cw.getId());
                 sm.addNumber((int) ((cw.getEndTime() - System.currentTimeMillis()) / 60000));
                 player.sendPacket(sm);
             }
@@ -395,25 +280,8 @@ public class CursedWeaponsManager {
     }
 
     public static void removeFromDb(int itemId) {
-        Connection con = null;
-        try {
-            con = L2DatabaseFactory.getInstance().getConnection();
-
-            // Delete datas
-            PreparedStatement statement = con.prepareStatement("DELETE FROM cursed_weapons WHERE itemId = ?");
-            statement.setInt(1, itemId);
-            statement.executeUpdate();
-
-            statement.close();
-            con.close();
-        } catch (SQLException e) {
-            _log.error("CursedWeaponsManager: Failed to remove data: " + e);
-        } finally {
-            try {
-                con.close();
-            } catch (Exception e) {
-            }
-        }
+        CursedWeaponRepository repository = DatabaseAccess.getRepository(CursedWeaponRepository.class);
+        repository.deleteById(itemId);
     }
 
     public void saveData() {

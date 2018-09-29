@@ -28,13 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-
-/**
- * This class ...
- *
- * @author godson
- * @version $Revision: $ $Date: $
- */
+import static java.util.Objects.isNull;
 
 public class DayNightSpawnManager {
 
@@ -47,7 +41,7 @@ public class DayNightSpawnManager {
     private static Map<L2Spawn, L2RaidBossInstance> bosses;
 
     public static DayNightSpawnManager getInstance() {
-        if (_instance == null) {
+        if (isNull(_instance)) {
             _instance = new DayNightSpawnManager();
         }
         return _instance;
@@ -57,7 +51,7 @@ public class DayNightSpawnManager {
         dayCreatures = ConcurrentHashMap.newKeySet();
         nightCreatures = ConcurrentHashMap.newKeySet();
         spawnedCreatures = new LinkedList<>();
-        bosses = new LinkedHashMap<>();
+        bosses = new HashMap<>();
 
         _log.info("DayNightSpawnManager: Day/Night handler initialized");
     }

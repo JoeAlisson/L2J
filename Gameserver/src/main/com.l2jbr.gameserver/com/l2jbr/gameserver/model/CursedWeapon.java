@@ -18,22 +18,23 @@
 package com.l2jbr.gameserver.model;
 
 import com.l2jbr.commons.Config;
-import com.l2jbr.commons.L2DatabaseFactory;
+import com.l2jbr.commons.database.DatabaseAccess;
 import com.l2jbr.commons.util.Rnd;
 import com.l2jbr.gameserver.ThreadPoolManager;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.instancemanager.CursedWeaponsManager;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.CursedWeapons;
+import com.l2jbr.gameserver.model.entity.database.repository.CharacterRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.CursedWeaponRepository;
+import com.l2jbr.gameserver.model.entity.database.repository.ItemRepository;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2Item;
+import com.l2jbr.gameserver.templates.BodyPart;
 import com.l2jbr.gameserver.util.Point3D;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.concurrent.ScheduledFuture;
 
 
@@ -93,7 +94,7 @@ public class CursedWeapon
 				removeSkill();
 				
 				// Remove
-				_player.getInventory().unEquipItemInBodySlotAndRecord(L2Item.SLOT_LR_HAND);
+				_player.getInventory().unEquipItemInBodySlotAndRecord(BodyPart.TWO_HAND);
 				_player.store();
 				
 				// Destroy
@@ -119,55 +120,18 @@ public class CursedWeapon
 				
 				_player.broadcastUserInfo();
 			}
-			else
-			{
+			else {
 				// Remove from Db
-				_log.info(_name + " being removed offline.");
-				
-				Connection con = null;
-				try
-				{
-					con = L2DatabaseFactory.getInstance().getConnection();
-					
-					// Delete the item
-					PreparedStatement statement = con.prepareStatement("DELETE FROM items WHERE owner_id=? AND item_id=?");
-					statement.setInt(1, _playerId);
-					statement.setInt(2, _itemId);
-					if (statement.executeUpdate() != 1)
-					{
-						_log.warn("Error while deleting itemId " + _itemId + " from userId " + _playerId);
-					}
-					statement.close();
-					/*
-					 * Yesod: Skill is not stored into database any more. // Delete the skill statement = con.prepareStatement("DELETE FROM character_skills WHERE char_obj_id=? AND skill_id=?"); statement.setInt(1, _playerId); statement.setInt(2, _skillId); if (statement.executeUpdate() != 1) {
-					 * _log.warn("Error while deleting skillId "+ _skillId +" from userId "+_playerId); }
-					 */
-					// Restore the karma
-					statement = con.prepareStatement("UPDATE characters SET karma=?, pkkills=? WHERE obj_id=?");
-					statement.setInt(1, _playerKarma);
-					statement.setInt(2, _playerPkKills);
-					statement.setInt(3, _playerId);
-					if (statement.executeUpdate() != 1)
-					{
-						_log.warn("Error while updating karma & pkkills for userId " + _playerId);
-					}
-					
-					statement.close();
-				}
-				catch (Exception e)
-				{
-					_log.warn("Could not delete : " + e);
-				}
-				finally
-				{
-					try
-					{
-						con.close();
-					}
-					catch (Exception e)
-					{
-					}
-				}
+				_log.info("{} being removed offline.", _name);
+                CharacterRepository characterRepository = DatabaseAccess.getRepository(CharacterRepository.class);
+                if(characterRepository.updatePKAndKarma(_playerId, _playerPkKills, _playerKarma) < 1) {
+                    _log.warn("Error while updating karma & pkkills for userId {}",  _playerId);
+                }
+
+                ItemRepository itemRepository = DatabaseAccess.getRepository(ItemRepository.class);
+                if(itemRepository.deleteByOwnerAndItem(_playerId, _itemId) < 1) {
+                    _log.warn("Error while deleting itemId {} from userId {}", _itemId, _playerId);
+                }
 			}
 		}
 		else
@@ -457,37 +421,14 @@ public class CursedWeapon
 		CursedWeaponsManager.announce(sm);
 	}
 	
-	public void saveData()
-	{
-		if (Config.DEBUG)
-		{
-			System.out.println("CursedWeapon: Saving data to disk.");
-		}
-		
-		try (Connection con = L2DatabaseFactory.getInstance().getConnection();
-			PreparedStatement ps1 = con.prepareStatement("DELETE FROM cursed_weapons WHERE itemId = ?");)
-		{
-			ps1.setInt(1, _itemId);
-			ps1.executeUpdate();
-			
-			if (_isActivated)
-			{
-				try (PreparedStatement ps2 = con.prepareStatement("INSERT INTO cursed_weapons (itemId, playerId, playerKarma, playerPkKills, nbKills, endTime) VALUES (?, ?, ?, ?, ?, ?)"))
-				{
-					ps2.setInt(1, _itemId);
-					ps2.setInt(2, _playerId);
-					ps2.setInt(3, _playerKarma);
-					ps2.setInt(4, _playerPkKills);
-					ps2.setInt(5, _nbKills);
-					ps2.setLong(6, _endTime);
-					ps2.executeUpdate();
-				}
-			}
-		}
-		catch (SQLException e)
-		{
-			_log.error("CursedWeapon: Failed to save data: " + e);
-		}
+	public void saveData() {
+        CursedWeaponRepository repository = DatabaseAccess.getRepository(CursedWeaponRepository.class);
+        repository.deleteById(_itemId);
+
+        if (_isActivated) {
+            CursedWeapons weapon = new CursedWeapons(_itemId, _playerId, _playerKarma, _playerPkKills, _nbKills, _endTime);
+            repository.save(weapon);
+        }
 	}
 	
 	public void dropIt(L2Character killer)

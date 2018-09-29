@@ -18,7 +18,7 @@
  */
 package com.l2jbr.gameserver.serverpackets;
 
-import com.l2jbr.gameserver.model.L2CharPosition;
+import com.l2jbr.gameserver.model.L2Position;
 import com.l2jbr.gameserver.model.L2Character;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
 
@@ -30,15 +30,15 @@ public class MoveToLocationInVehicle extends L2GameServerPacket
 {
 	private int _charObjId;
 	private int _boatId;
-	private L2CharPosition _destination;
-	private L2CharPosition _origin;
+	private L2Position _destination;
+	private L2Position _origin;
 	
 	/**
 	 * @param actor
 	 * @param destination
 	 * @param origin
 	 */
-	public MoveToLocationInVehicle(L2Character actor, L2CharPosition destination, L2CharPosition origin)
+	public MoveToLocationInVehicle(L2Character actor, L2Position destination, L2Position origin)
 	{
 		if (!(actor instanceof L2PcInstance))
 		{
@@ -68,15 +68,15 @@ public class MoveToLocationInVehicle extends L2GameServerPacket
 	@Override
 	protected void writeImpl()
 	{
-		writeC(0x71);
-		writeD(_charObjId);
-		writeD(_boatId);
-		writeD(_destination.x);
-		writeD(_destination.y);
-		writeD(_destination.z);
-		writeD(_origin.x);
-		writeD(_origin.y);
-		writeD(_origin.z);
+		writeByte(0x71);
+		writeInt(_charObjId);
+		writeInt(_boatId);
+		writeInt(_destination.x);
+		writeInt(_destination.y);
+		writeInt(_destination.z);
+		writeInt(_origin.x);
+		writeInt(_origin.y);
+		writeInt(_origin.z);
 	}
 	
 	/*

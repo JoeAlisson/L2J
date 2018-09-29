@@ -44,7 +44,7 @@ public final class RequestChangePetName extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_name = readS();
+		_name = readString();
 	}
 	
 	@Override
@@ -67,7 +67,7 @@ public final class RequestChangePetName extends L2GameClientPacket
 			activeChar.sendPacket(new SystemMessage(SystemMessageId.NAMING_YOU_CANNOT_SET_NAME_OF_THE_PET));
 			return;
 		}
-		else if (PetNameTable.getInstance().doesPetNameExist(_name, pet.getTemplate().npcId))
+		else if (PetNameTable.getInstance().doesPetNameExist(_name, pet.getTemplate().getId()))
 		{
 			activeChar.sendPacket(new SystemMessage(SystemMessageId.NAMING_ALREADY_IN_USE_BY_ANOTHER_PET));
 			return;

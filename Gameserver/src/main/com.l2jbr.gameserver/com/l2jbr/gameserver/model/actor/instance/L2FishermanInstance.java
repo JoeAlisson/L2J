@@ -23,12 +23,13 @@ import com.l2jbr.gameserver.TradeController;
 import com.l2jbr.gameserver.datatables.SkillTable;
 import com.l2jbr.gameserver.datatables.SkillTreeTable;
 import com.l2jbr.gameserver.model.L2Skill;
-import com.l2jbr.gameserver.model.L2SkillLearn;
-import com.l2jbr.gameserver.model.L2TradeList;
+import com.l2jbr.gameserver.model.entity.database.MerchantShop;
+import com.l2jbr.gameserver.model.entity.database.NpcTemplate;
+import com.l2jbr.gameserver.model.entity.database.SkillInfo;
 import com.l2jbr.gameserver.network.SystemMessageId;
 import com.l2jbr.gameserver.serverpackets.*;
-import com.l2jbr.gameserver.templates.L2NpcTemplate;
 
+import java.util.List;
 import java.util.StringTokenizer;
 
 
@@ -37,7 +38,7 @@ public class L2FishermanInstance extends L2FolkInstance {
      * @param objectId
      * @param template
      */
-    public L2FishermanInstance(int objectId, L2NpcTemplate template) {
+    public L2FishermanInstance(int objectId, NpcTemplate template) {
         super(objectId, template);
     }
 
@@ -63,7 +64,7 @@ public class L2FishermanInstance extends L2FolkInstance {
         if (Config.DEBUG) {
             _log.debug("Showing buylist");
         }
-        L2TradeList list = TradeController.getInstance().getBuyList(val);
+        MerchantShop list = TradeController.getInstance().getBuyList(val);
 
         if ((list != null) && list.getNpcId().equals(String.valueOf(getNpcId()))) {
             BuyList bl = new BuyList(list, player.getAdena(), taxRate);
@@ -93,7 +94,7 @@ public class L2FishermanInstance extends L2FolkInstance {
     @Override
     public void onBypassFeedback(L2PcInstance player, String command) {
         if (command.startsWith("FishSkillList")) {
-            player.setSkillLearningClassId(player.getClassId());
+            player.setSkillLearningClassId(player.getPlayerClass());
             showSkillList(player);
         }
 
@@ -114,12 +115,12 @@ public class L2FishermanInstance extends L2FolkInstance {
     }
 
     public void showSkillList(L2PcInstance player) {
-        L2SkillLearn[] skills = SkillTreeTable.getInstance().getAvailableSkills(player);
+        List<SkillInfo> skills = SkillTreeTable.getInstance().getAvailableSkills(player);
         AquireSkillList asl = new AquireSkillList(AquireSkillList.skillType.Fishing);
 
         int counts = 0;
 
-        for (L2SkillLearn s : skills) {
+        for (SkillInfo s : skills) {
             L2Skill sk = SkillTable.getInstance().getInfo(s.getId(), s.getLevel());
 
             if (sk == null) {

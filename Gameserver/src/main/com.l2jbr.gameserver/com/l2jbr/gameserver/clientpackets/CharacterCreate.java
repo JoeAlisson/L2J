@@ -23,23 +23,24 @@ import com.l2jbr.gameserver.datatables.*;
 import com.l2jbr.gameserver.idfactory.IdFactory;
 import com.l2jbr.gameserver.model.L2ItemInstance;
 import com.l2jbr.gameserver.model.L2ShortCut;
-import com.l2jbr.gameserver.model.L2SkillLearn;
 import com.l2jbr.gameserver.model.L2World;
 import com.l2jbr.gameserver.model.actor.instance.L2PcInstance;
+import com.l2jbr.gameserver.model.entity.database.ItemTemplate;
+import com.l2jbr.gameserver.model.entity.database.PlayerTemplate;
+import com.l2jbr.gameserver.model.entity.database.SkillInfo;
 import com.l2jbr.gameserver.network.L2GameClient;
 import com.l2jbr.gameserver.serverpackets.CharCreateFail;
 import com.l2jbr.gameserver.serverpackets.CharCreateOk;
 import com.l2jbr.gameserver.serverpackets.CharSelectInfo;
-import com.l2jbr.gameserver.templates.L2Item;
-import com.l2jbr.gameserver.templates.L2PcTemplate;
+import com.l2jbr.gameserver.templates.ItemTypeGroup;
 import com.l2jbr.gameserver.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 
 /**
  * This class ...
@@ -69,25 +70,25 @@ public final class CharacterCreate extends L2GameClientPacket
 	@Override
 	protected void readImpl()
 	{
-		_name = readS();
-		_race = readD();
-		_sex = (byte) readD();
-		_classId = readD();
-		_int = readD();
-		_str = readD();
-		_con = readD();
-		_men = readD();
-		_dex = readD();
-		_wit = readD();
-		_hairStyle = (byte) readD();
-		_hairColor = (byte) readD();
-		_face = (byte) readD();
+		_name = readString();
+		_race = readInt();
+		_sex = (byte) readInt();
+		_classId = readInt();
+		_int = readInt();
+		_str = readInt();
+		_con = readInt();
+		_men = readInt();
+		_dex = readInt();
+		_wit = readInt();
+		_hairStyle = (byte) readInt();
+		_hairColor = (byte) readInt();
+		_face = (byte) readInt();
 	}
 	
 	@Override
 	protected void runImpl()
 	{
-		if ((CharNameTable.getInstance().accountCharNumber(getClient().getAccountName()) >= Config.MAX_CHARACTERS_NUMBER_PER_ACCOUNT) && (Config.MAX_CHARACTERS_NUMBER_PER_ACCOUNT != 0))
+		if ((CharNameTable.accountCharNumber(getClient().getAccountName()) >= Config.MAX_CHARACTERS_NUMBER_PER_ACCOUNT) && (Config.MAX_CHARACTERS_NUMBER_PER_ACCOUNT != 0))
 		{
 			if (Config.DEBUG)
 			{
@@ -97,7 +98,7 @@ public final class CharacterCreate extends L2GameClientPacket
 			sendPacket(ccf);
 			return;
 		}
-		else if (CharNameTable.getInstance().doesCharNameExist(_name))
+		else if (CharNameTable.doesCharNameExist(_name))
 		{
 			if (Config.DEBUG)
 			{
@@ -123,8 +124,8 @@ public final class CharacterCreate extends L2GameClientPacket
 			_log.debug("charname: " + _name + " classId: " + _classId);
 		}
 		
-		L2PcTemplate template = CharTemplateTable.getInstance().getTemplate(_classId);
-		if ((template == null) || (template.classBaseLevel > 1))
+		PlayerTemplate template = CharTemplateTable.getInstance().getTemplate(_classId);
+		if ((template == null) || (template.getClassLevel() > 0))
 		{
 			CharCreateFail ccf = new CharCreateFail(CharCreateFail.REASON_CREATION_FAILED);
 			sendPacket(ccf);
@@ -133,9 +134,9 @@ public final class CharacterCreate extends L2GameClientPacket
 		
 		int objectId = IdFactory.getInstance().getNextId();
 		L2PcInstance newChar = L2PcInstance.create(objectId, template, getClient().getAccountName(), _name, _hairStyle, _hairColor, _face, _sex != 0);
-		newChar.setCurrentHp(template.baseHpMax);
-		newChar.setCurrentCp(template.baseCpMax);
-		newChar.setCurrentMp(template.baseMpMax);
+		newChar.setCurrentHp(template.getHp());
+		newChar.setCurrentCp(template.getCp());
+		newChar.setCurrentMp(template.getMp());
 		// newChar.setMaxLoad(template.baseLoad);
 		
 		// send acknowledgement
@@ -167,19 +168,15 @@ public final class CharacterCreate extends L2GameClientPacket
 		return result;
 	}
 	
-	private void initNewChar(L2GameClient client, L2PcInstance newChar)
-	{
-		if (Config.DEBUG)
-		{
-			_log.debug("Character init start");
-		}
+	private void initNewChar(L2GameClient client, L2PcInstance newChar) {
+		_log.debug("Character init start");
 		L2World.getInstance().storeObject(newChar);
 		
-		L2PcTemplate template = newChar.getTemplate();
+		PlayerTemplate template = newChar.getTemplate();
 		
 		newChar.addAdena("Init", Config.STARTING_ADENA, null, false);
 		
-		newChar.setXYZInvisible(template.spawnX, template.spawnY, template.spawnZ);
+		newChar.setPositionInvisible(template.getX(), template.getY(), template.getZ());
 		newChar.setTitle("");
 		
 		L2ShortCut shortcut;
@@ -194,10 +191,10 @@ public final class CharacterCreate extends L2GameClientPacket
 		newChar.registerShortCut(shortcut);
 		
 		ItemTable.getInstance();
-		L2Item[] items = template.getItems();
-		for (L2Item item2 : items)
+		List<ItemTemplate> items = template.getItems();
+		for (ItemTemplate item2 : items)
 		{
-			L2ItemInstance item = newChar.getInventory().addItem("Init", item2.getItemId(), 1, newChar, null);
+			L2ItemInstance item = newChar.getInventory().addItem("Init", item2.getId(), 1, newChar, null);
 			if (item.getItemId() == 5588)
 			{
 				// add tutbook shortcut
@@ -206,15 +203,15 @@ public final class CharacterCreate extends L2GameClientPacket
 			}
 			if (item.isEquipable())
 			{
-				if ((newChar.getActiveWeaponItem() == null) || !(item.getItem().getType2() != L2Item.TYPE2_WEAPON))
+				if ((newChar.getActiveWeaponItem() == null) || item.getItem().getType2() == ItemTypeGroup.TYPE2_WEAPON)
 				{
 					newChar.getInventory().equipItemAndRecord(item);
 				}
 			}
 		}
 		
-		L2SkillLearn[] startSkills = SkillTreeTable.getInstance().getAvailableSkills(newChar, newChar.getClassId());
-		for (L2SkillLearn startSkill : startSkills)
+		List<SkillInfo> startSkills = SkillTreeTable.getInstance().getAvailableSkills(newChar, newChar.getPlayerClass());
+		for (SkillInfo startSkill : startSkills)
 		{
 			newChar.addSkill(SkillTable.getInstance().getInfo(startSkill.getId(), startSkill.getLevel()), true);
 			if ((startSkill.getId() == 1001) || (startSkill.getId() == 1177))
@@ -239,7 +236,7 @@ public final class CharacterCreate extends L2GameClientPacket
 		// send char list
 		
 		CharSelectInfo cl = new CharSelectInfo(client.getAccountName(), client.getSessionId().playOkID1);
-		client.getConnection().sendPacket(cl);
+		client.sendPacket(cl);
 		client.setCharSelection(cl.getCharInfo());
 		if (Config.DEBUG)
 		{
